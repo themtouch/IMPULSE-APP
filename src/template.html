@@ -1,0 +1,449 @@
+<title>Impulse — Modelo corporal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#121212; --surface:#1E1E1E; --elev:#242424; --line:rgba(255,255,255,.08);
+    --line2:rgba(255,255,255,.14); --fg:#F5F5F5; --mut:#9c9c99; --mut2:#6f6f6c;
+    --accent:#B2D5E5; --accent-ink:#0f1720; --r:16px;
+    --tA:#B2D5E5; --tB:#E0BE63; --tC:#A6B2BD; --tD:#C08552; --tE:#6B7280;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{color-scheme:dark}
+  body{background:var(--bg);color:var(--fg);font-family:var(--font);line-height:1.55;
+    font-feature-settings:"ss01","cv01";text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(1200px 700px at 78% -8%, rgba(178,213,229,.06), transparent 60%);}
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  a{color:inherit}
+
+  /* header */
+  header.top{position:sticky;top:0;z-index:40;background:rgba(18,18,18,.72);
+    backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .top .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+  .mark{width:26px;height:26px;border-radius:9px;background:linear-gradient(150deg,var(--accent),#7fb4c9);
+    display:grid;place-items:center;color:var(--accent-ink);font-weight:800;font-size:15px}
+  .top nav{display:flex;gap:22px;font-size:13px;color:var(--mut)}
+  .top nav a:hover{color:var(--fg)}
+  .top .cta{font-size:13px;font-weight:600;background:var(--fg);color:#111;padding:8px 14px;border-radius:999px}
+  @media(max-width:720px){.top nav{display:none}}
+
+  /* hero */
+  .hero{padding:64px 0 34px}
+  .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  h1{font-size:clamp(2.1rem,5.4vw,3.6rem);line-height:1.04;letter-spacing:-.03em;font-weight:800;
+    margin:16px 0 0;text-wrap:balance;max-width:16ch}
+  h1 .soft{color:var(--accent)}
+  .lede{color:var(--mut);font-size:1.06rem;max-width:60ch;margin-top:18px}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{font-size:12.5px;color:var(--mut);border:1px solid var(--line2);border-radius:999px;
+    padding:8px 13px;display:inline-flex;align-items:center;gap:8px}
+  .chip b{color:var(--fg);font-weight:600}
+  .dot{width:11px;height:11px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+
+  section{padding:40px 0}
+  .shead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+  .shead h2{font-size:1.5rem;letter-spacing:-.02em;font-weight:700}
+  .shead p{color:var(--mut);font-size:.95rem;max-width:52ch;margin-top:6px}
+  .kicker{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:8px}
+
+  /* physique studio */
+  .studio{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:22px;
+    background:linear-gradient(180deg,#1b1b1b,#161616);border:1px solid var(--line);border-radius:calc(var(--r) + 6px);padding:22px}
+  @media(max-width:860px){.studio{grid-template-columns:1fr}}
+  .stagewrap{background:radial-gradient(120% 90% at 50% 0%, #232a2e 0%, #14181b 55%, #0e1113 100%);
+    border:1px solid var(--line);border-radius:var(--r);padding:18px;position:relative;overflow:hidden}
+  .viewtabs{position:absolute;top:14px;left:14px;z-index:5;display:flex;gap:4px;background:rgba(0,0,0,.35);
+    border:1px solid var(--line2);border-radius:999px;padding:4px}
+  .viewtabs button{font:inherit;font-size:12.5px;font-weight:600;color:var(--mut);background:none;border:0;
+    padding:6px 14px;border-radius:999px;cursor:pointer}
+  .viewtabs button.on{background:var(--fg);color:#111}
+  .halo{position:absolute;left:50%;top:44%;width:62%;height:70%;transform:translate(-50%,-50%);
+    background:radial-gradient(circle,rgba(178,213,229,.16),transparent 68%);filter:blur(26px);pointer-events:none}
+
+  .stage{position:relative;margin:0 auto;isolation:isolate}
+  .stage.front{aspect-ratio:/*FRONT_ASPECT*/;max-width:340px}
+  .stage.back{aspect-ratio:/*BACK_ASPECT*/;max-width:360px}
+  .stage[hidden]{display:none}
+  .base{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+    filter:grayscale(.65) brightness(.5) contrast(1.04);z-index:1}
+  .m{position:absolute;z-index:2;transition:opacity .18s, filter .18s;opacity:.86}
+  .m--static{opacity:.16;background:#cfd8dd}
+  .m--int{cursor:pointer}
+  .m--int:hover{opacity:1;filter:drop-shadow(0 0 4px rgba(178,213,229,.9)) brightness(1.15)}
+  .m--int.sel{opacity:1;filter:drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px rgba(178,213,229,.55)) brightness(1.2)}
+  .stage .scan{position:absolute;left:8%;right:8%;height:26%;z-index:3;pointer-events:none;opacity:.55;
+    background:linear-gradient(180deg,transparent,rgba(178,213,229,.09),transparent);
+    animation:scan 4.2s ease-in-out infinite;mix-blend-mode:screen}
+  @keyframes scan{0%{top:-34%}100%{top:104%}}
+  @media(prefers-reduced-motion:reduce){.stage .scan{display:none}}
+
+  /* side panel */
+  .side{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+  .panel h3{font-size:.82rem;letter-spacing:.02em;color:var(--mut);font-weight:600;margin-bottom:12px;text-transform:uppercase}
+  .legend{display:flex;flex-direction:column;gap:9px}
+  .legrow{display:flex;align-items:center;gap:10px;font-size:13px}
+  .legrow .sw{width:26px;height:10px;border-radius:3px}
+  .legrow .lb{color:var(--fg);font-weight:600;width:64px}
+  .legrow .ds{color:var(--mut2);font-size:12px}
+
+  .detail .dtop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .detail .mname{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
+  .rank{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:800;color:#111;font-size:16px}
+  .metarow{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
+  .tag{font-size:11.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--mut)}
+  .tag.lag{color:#0f1720;background:var(--accent);border-color:transparent;font-weight:600}
+  .detail p.rec{font-size:13px;color:var(--mut);margin-top:10px}
+  .detail p.rec b{color:var(--fg);font-weight:600}
+  .hint{color:var(--mut2);font-size:12.5px}
+
+  .lag-list{display:flex;flex-direction:column;gap:8px}
+  .lag-item{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;
+    padding:9px 11px;background:var(--elev);border:1px solid var(--line);border-radius:11px;cursor:pointer}
+  .lag-item:hover{border-color:var(--line2)}
+  .lag-item .pri{font-size:11px;color:var(--accent);font-weight:600}
+
+  /* journey */
+  .rail{display:flex;gap:18px;overflow-x:auto;padding:6px 24px 22px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .rail::-webkit-scrollbar{height:8px}
+  .rail::-webkit-scrollbar-thumb{background:#2c2c2c;border-radius:99px}
+  .phone{scroll-snap-align:center;flex:0 0 auto;width:250px;border-radius:34px;background:#0c0c0c;
+    border:1px solid #262626;box-shadow:0 20px 50px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.02);padding:12px 12px 16px;position:relative}
+  .phone .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:78px;height:20px;background:#0c0c0c;border-radius:0 0 12px 12px;z-index:6}
+  .screen{background:var(--bg);border-radius:24px;overflow:hidden;height:452px;position:relative;border:1px solid #1c1c1c;display:flex;flex-direction:column}
+  .sbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 4px;font-size:12px;font-weight:600}
+  .sbar .r{display:flex;gap:5px;align-items:center;color:var(--mut)}
+  .scr-body{padding:6px 16px 16px;flex:1;min-height:0;overflow:hidden}
+  .p-eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);font-weight:600;display:flex;justify-content:space-between}
+  .p-eyebrow .sk{color:var(--accent)}
+  .prog{height:5px;border-radius:99px;background:#2a2a2a;margin:9px 0 14px;overflow:hidden}
+  .prog i{display:block;height:100%;background:var(--accent);border-radius:99px}
+  .p-h{font-size:1.15rem;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+  .p-sub{font-size:12.5px;color:var(--mut);line-height:1.5}
+  .caption{text-align:center;color:var(--mut);font-size:12.5px;margin-top:10px}
+  .caption b{color:var(--fg);font-weight:600}
+  .field{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:9px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+  .field .v{color:var(--mut)}
+  .seg{display:flex;gap:6px;margin-top:9px}
+  .seg span{flex:1;text-align:center;font-size:12px;padding:8px 0;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--mut)}
+  .seg span.on{background:var(--accent);color:#111;border-color:transparent;font-weight:600}
+  .stat{display:flex;gap:8px;margin-top:6px}
+  .stat .card{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .stat .k{font-size:10.5px;color:var(--mut2);text-transform:uppercase;letter-spacing:.08em}
+  .stat .val{font-size:1.35rem;font-weight:800;letter-spacing:-.02em;margin-top:2px}
+  .stat .val small{font-size:.62em;color:var(--mut);font-weight:600}
+  .listrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .listrow:last-child{border-bottom:0}
+  .thumb{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#2b2b2b,#1c1c1c);flex:0 0 auto;display:grid;place-items:center;color:var(--mut2);font-size:16px}
+  .listrow .meta{flex:1;min-width:0}
+  .listrow .meta .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .listrow .meta .s{color:var(--mut2);font-size:11.5px}
+  .pill{font-size:10.5px;padding:4px 8px;border-radius:99px;border:1px solid var(--line2);color:var(--mut)}
+  .pill.A{background:var(--tA);color:#0f1720;border-color:transparent;font-weight:700}
+  .btn{display:block;text-align:center;background:var(--accent);color:#0f1720;font-weight:700;font-size:13px;
+    padding:12px;border-radius:12px;margin-top:10px}
+  .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line2)}
+  .cel{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,rgba(178,213,229,.22),transparent 62%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px}
+  .cel .big{font-size:2.4rem;font-weight:800;letter-spacing:-.03em}
+  .cel .rankup{width:78px;height:78px;border-radius:20px;background:var(--tA);color:#0f1720;display:grid;place-items:center;font-size:34px;font-weight:800;margin-bottom:14px;box-shadow:0 12px 40px rgba(178,213,229,.4)}
+  .price{display:flex;align-items:baseline;gap:4px;margin:8px 0}
+  .price .n{font-size:2rem;font-weight:800;letter-spacing:-.02em}
+  .price .u{color:var(--mut);font-size:12px}
+  .feat{font-size:12.5px;color:var(--mut);display:flex;gap:8px;padding:6px 0}
+  .feat .ck{color:var(--accent);font-weight:800}
+  .mini-model{position:absolute;inset:0;display:grid;place-items:center}
+  .mini-model .stage{width:150px;max-width:150px;margin:0 auto}
+  .phone .stage{max-width:150px}
+  .phone .base{filter:grayscale(.5) brightness(.55) contrast(1.05)}
+  .phone .m--int:hover{filter:none}
+
+  footer{border-top:1px solid var(--line);padding:34px 0 60px;color:var(--mut2);font-size:12.5px}
+  footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .disc{max-width:60ch}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><span class="mark">I</span> Impulse</div>
+  <nav><a>Modelo corporal</a><a>Entrenamiento</a><a>Biblioteca</a><a>Jerarquía</a></nav>
+  <a class="cta">Abrir app</a>
+</div></header>
+
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Impulse · Modelo corporal</div>
+    <h1>Tu entrenamiento se adapta a tu físico, <span class="soft">no al revés.</span></h1>
+    <p class="lede">Impulse construye un modelo de tu cuerpo por músculo. Cada sección gana jerarquía cuando entrenas, y el plan manda el volumen extra a lo que va rezagado. Este es el modelo real, armado con tus láminas anatómicas — frente y espalda, músculo por músculo.</p>
+    <div class="chips">
+      <span class="chip"><span class="dot" style="background:#121212"></span>Fondo <b>#121212</b></span>
+      <span class="chip"><span class="dot" style="background:#B2D5E5"></span>Acento <b>#B2D5E5</b></span>
+      <span class="chip"><span class="dot" style="background:#1E1E1E"></span>Superficie <b>#1E1E1E</b></span>
+      <span class="chip">Radio <b>16&nbsp;px</b></span>
+      <span class="chip">SF&nbsp;Pro · <b>números redondeados</b></span>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <div>
+        <div class="kicker">02 · Modelo corporal · 06 · Físico</div>
+        <h2>Estudio del físico</h2>
+        <p>Toca un músculo para ver su jerarquía de fuerza. Los rezagados definen a dónde va el volumen de la próxima fase.</p>
+      </div>
+    </div>
+
+    <div class="studio">
+      <div class="stagewrap">
+        <div class="halo"></div>
+        <div class="viewtabs">
+          <button data-view="front" class="on">Frente</button>
+          <button data-view="back">Espalda</button>
+        </div>
+        <div class="stage front" data-view="front">
+          <div class="scan"></div>
+          <img class="base" src="/*FRONT_BASE*/" alt="Modelo corporal — frente" />
+          <!--FRONT_LAYERS-->
+        </div>
+        <div class="stage back" data-view="back" hidden>
+          <div class="scan"></div>
+          <img class="base" src="/*BACK_BASE*/" alt="Modelo corporal — espalda" />
+          <!--BACK_LAYERS-->
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel detail" id="detail">
+          <div class="dtop">
+            <div class="mname" id="d-name">Selecciona un músculo</div>
+            <div class="rank" id="d-rank" style="background:#2a2a2a;color:#888">—</div>
+          </div>
+          <div class="metarow" id="d-meta"><span class="tag">Toca el modelo para inspeccionar</span></div>
+          <p class="rec" id="d-rec">Cada músculo tiene su propia jerarquía: de <b>Iniciado</b> a <b>Élite</b>. El motor recalcula la carga por sección tras cada sesión.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Jerarquía de fuerza</h3>
+          <div class="legend" id="legend"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Rezagados · volumen prioritario</h3>
+          <div class="lag-list" id="laglist"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <div>
+        <div class="kicker">El journey</div>
+        <h2>Ocho pantallas del flujo real</h2>
+        <p>Registro → modelo corporal → dashboard → entrenamiento → biblioteca → mapa corporal → ascenso de jerarquía → paywall. Desliza →</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="rail" id="rail">
+  <!-- 01 Registro -->
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="sbar"><span class="num">9:41</span><span class="r num">◧ ▮</span></div>
+    <div class="scr-body">
+      <div class="p-eyebrow"><span>Paso 1 de 5</span></div>
+      <div class="prog"><i style="width:20%"></i></div>
+      <div class="p-h">Cuéntanos de ti</div>
+      <div class="p-sub">Con esto personalizamos tu plan y tu modelo corporal.</div>
+      <div class="field">Edad <span class="v num">24 años</span></div>
+      <div class="field" style="display:block">Género
+        <div class="seg"><span class="on">Hombre</span><span>Mujer</span></div>
+      </div>
+      <div class="field" style="display:block">Tiempo entrenando
+        <div class="seg"><span>0–1&nbsp;a</span><span class="on">1–3&nbsp;a</span><span>3&nbsp;a+</span></div>
+      </div>
+      <a class="btn">Continuar</a>
+    </div>
+  </div></div>
+
+  <!-- 02 Modelo corporal -->
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="sbar"><span class="num">9:41</span><span class="r">Omitir</span></div>
+    <div class="scr-body" style="position:relative">
+      <div class="p-eyebrow"><span>Paso 4 de 5</span></div>
+      <div class="prog"><i style="width:80%"></i></div>
+      <div class="p-h">Tu modelo corporal</div>
+      <div class="p-sub">La IA analiza tus proporciones para detectar músculos rezagados y calibrar el volumen.</div>
+      <div class="mini-model" data-clone="front" style="top:96px;bottom:8px"></div>
+    </div>
+  </div></div>
+
+  <!-- 03 Dashboard -->
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="sbar"><span class="num">9:41</span><span class="r num">◧ ▮</span></div>
+    <div class="scr-body">
+      <div class="p-eyebrow"><span>Martes</span><span class="sk">Nivel 12</span></div>
+      <div class="p-h" style="margin-top:6px">Hola, Enzo</div>
+      <div class="stat">
+        <div class="card"><div class="k">Racha</div><div class="val num">18<small> días</small></div></div>
+        <div class="card"><div class="k">Esta semana</div><div class="val num">4<small>/5</small></div></div>
+      </div>
+      <div class="field" style="display:block;margin-top:10px">
+        <div style="display:flex;justify-content:space-between"><b>Próxima sesión</b><span class="pill A">Prioridad</span></div>
+        <div class="p-sub" style="margin-top:6px">Empuje · foco en <b style="color:#fff">antebrazos</b> y <b style="color:#fff">tríceps</b> (rezagados)</div>
+      </div>
+      <div class="listrow"><div class="thumb">⧗</div><div class="meta"><div class="t">Press inclinado mancuerna</div><div class="s num">4 × 8–10</div></div><span class="pill">B</span></div>
+      <div class="listrow"><div class="thumb">⧗</div><div class="meta"><div class="t">Fondos en paralelas</div><div class="s num">3 × 10</div></div><span class="pill">C</span></div>
+      <a class="btn">Empezar sesión</a>
+    </div>
+  </div></div>
+
+  <!-- 04 Entrenamiento -->
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="sbar"><span class="num">9:41</span><span class="r">● Offline</span></div>
+    <div class="scr-body">
+      <div class="p-eyebrow"><span>Sesión activa</span><span class="sk num">32:14</span></div>
+      <div class="p-h" style="margin-top:6px">Press inclinado</div>
+      <div class="p-sub">Serie 2 de 4 · descanso 90 s</div>
+      <div class="stat" style="margin-top:12px">
+        <div class="card"><div class="k">Peso</div><div class="val num">32<small> kg</small></div></div>
+        <div class="card"><div class="k">Reps</div><div class="val num">10</div></div>
+      </div>
+      <div class="field" style="margin-top:10px">Próxima carga sugerida <span class="v num" style="color:var(--accent)">34 kg</span></div>
+      <div class="p-sub" style="margin-top:8px;color:var(--mut2)">El motor determinista ya calculó la progresión. Dos taps por serie.</div>
+      <a class="btn">Registrar serie</a>
+      <a class="btn ghost">Saltar descanso</a>
+    </div>
+  </div></div>
+
+  <!-- 05 Biblioteca -->
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="sbar"><span class="num">9:41</span><span class="r num">◧ ▮</span></div>
+    <div class="scr-body">
+      <div class="p-eyebrow"><span>Biblioteca</span><span class="num">1,293</span></div>
+      <div class="p-h" style="margin-top:6px">Ejercicios</div>
+      <div class="field" style="color:var(--mut2)">🔎 Buscar ejercicio…</div>
+      <div class="listrow" style="margin-top:6px"><div class="thumb">▶</div><div class="meta"><div class="t">Sentadilla trasera</div><div class="s">Cuádriceps · glúteos</div></div><span class="pill A">A</span></div>
+      <div class="listrow"><div class="thumb">▶</div><div class="meta"><div class="t">Remo con barra</div><div class="s">Espalda · bíceps</div></div><span class="pill">B</span></div>
+      <div class="listrow"><div class="thumb">▶</div><div class="meta"><div class="t">Curl de antebrazo</div><div class="s">Antebrazos</div></div><span class="pill">D</span></div>
+      <div class="listrow"><div class="thumb">▶</div><div class="meta"><div class="t">Elevación de gemelo</div><div class="s">Pantorrillas</div></div><span class="pill">E</span></div>
+      <div class="p-sub" style="margin-top:8px;color:var(--mut2)">GIF de ejecución · músculos primarios/secundarios · tu rango por ejercicio.</div>
+    </div>
+  </div></div>
+
+  <!-- 06 Físico -->
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="sbar"><span class="num">9:41</span><span class="r">Frente · Espalda</span></div>
+    <div class="scr-body" style="position:relative">
+      <div class="p-eyebrow"><span>Físico</span><span class="sk">Mapa corporal</span></div>
+      <div class="p-h" style="margin-top:6px">Tu jerarquía</div>
+      <div class="mini-model" data-clone="back" style="top:78px;bottom:8px"></div>
+    </div>
+  </div></div>
+
+  <!-- 07 Gamificación -->
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="cel">
+      <div class="rankup">A</div>
+      <div class="p-eyebrow" style="justify-content:center;color:var(--accent)">Ascenso de jerarquía</div>
+      <div class="big">Pecho → Élite</div>
+      <div class="p-sub" style="margin-top:8px">Alcanzaste el rango máximo en empuje. Celebración full-screen y haptics, incluso sin conexión.</div>
+      <a class="btn" style="width:80%;margin-top:18px">Reclamar</a>
+    </div>
+  </div></div>
+
+  <!-- 08 Paywall -->
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="scr-body">
+      <div class="p-eyebrow"><span>Impulse Pro</span><span class="sk">StoreKit 2</span></div>
+      <div class="p-h" style="margin-top:6px">Desbloquea la Zona Pro</div>
+      <div class="price"><span class="n num">$149</span><span class="u">/mes · MXN</span></div>
+      <div class="feat"><span class="ck">✓</span> Coach 1:1 y ajustes de plan ilimitados</div>
+      <div class="feat"><span class="ck">✓</span> Análisis avanzado de rezagados</div>
+      <div class="feat"><span class="ck">✓</span> Fases de volumen y definición guiadas</div>
+      <div class="feat" style="color:var(--mut2)"><span style="color:var(--mut2)">○</span> Gratis: rutinas con biblioteca + rango</div>
+      <a class="btn">Empezar Pro</a>
+      <a class="btn ghost">Seguir en gratis</a>
+    </div>
+  </div></div>
+</div>
+
+<footer><div class="wrap">
+  <div class="disc">Impulse — preview de interfaz. Modelo corporal reconstruido a partir de las láminas anatómicas del proyecto (frente + espalda), músculo por músculo, sobre el design system real.</div>
+  <div>#121212 · #1E1E1E · #B2D5E5 · r16 · SF&nbsp;Pro</div>
+</div></footer>
+
+<script>
+const META = /*META_JSON*/;
+const TIER = {
+  A:{c:'var(--tA)',n:'Élite',d:'rango máximo'},
+  B:{c:'var(--tB)',n:'Oro',d:'avanzado'},
+  C:{c:'var(--tC)',n:'Plata',d:'intermedio'},
+  D:{c:'var(--tD)',n:'Bronce',d:'en desarrollo'},
+  E:{c:'var(--tE)',n:'Iniciado',d:'base'},
+};
+// paint muscles by tier
+document.querySelectorAll('.stage .m--int').forEach(el=>{
+  const t = el.dataset.tier;
+  el.style.background = TIER[t] ? TIER[t].c : '#cfd8dd';
+});
+// legend
+const leg = document.getElementById('legend');
+['A','B','C','D','E'].forEach(t=>{
+  const r=document.createElement('div');r.className='legrow';
+  r.innerHTML=`<span class="sw" style="background:${TIER[t].c}"></span><span class="lb">${TIER[t].n}</span><span class="ds">${t} · ${TIER[t].d}</span>`;
+  leg.appendChild(r);
+});
+// detail panel
+function select(el){
+  document.querySelectorAll('.stage .m--int.sel').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  const t=el.dataset.tier, lag=el.dataset.lag==='1';
+  document.getElementById('d-name').textContent=el.dataset.label;
+  const rk=document.getElementById('d-rank');
+  rk.textContent=t; rk.style.background=TIER[t].c; rk.style.color='#0f1720';
+  document.getElementById('d-meta').innerHTML =
+    `<span class="tag">${el.dataset.group}</span>`+
+    `<span class="tag">Jerarquía ${TIER[t].n}</span>`+
+    (lag?`<span class="tag lag">Rezagado</span>`:``);
+  document.getElementById('d-rec').innerHTML = lag
+    ? `<b>Prioridad de volumen.</b> ${el.dataset.label} va por detrás de tu jerarquía global — el plan añade series aquí en la próxima fase.`
+    : `Jerarquía <b>${TIER[t].n}</b>. Mantén la carga; el motor recalcula la progresión tras cada sesión.`;
+}
+document.querySelectorAll('.stage .m--int').forEach(el=>{
+  el.addEventListener('click',()=>select(el));
+});
+// lagging list
+const lags=[...(META.front||[]),...(META.back||[])].filter(m=>m.lag);
+const ll=document.getElementById('laglist');
+if(!lags.length){ll.innerHTML='<div class="hint">Sin rezagados. Todo al día.</div>';}
+lags.forEach(m=>{
+  const d=document.createElement('div');d.className='lag-item';
+  d.innerHTML=`<span>${m.label}</span><span class="pri">${TIER[m.tier].n} · +vol</span>`;
+  d.addEventListener('click',()=>{
+    const tab=document.querySelector(`.viewtabs button[data-view="${lags.indexOf(m)>-1 && (META.back||[]).includes(m)?'back':'front'}"]`);
+    const view = (META.front||[]).some(x=>x.key===m.key)?'front':'back';
+    setView(view);
+    const el=document.querySelector(`.stage.${view} .m--int[data-key="${m.key}"]`);
+    if(el){select(el);el.scrollIntoView({block:'nearest'});}
+  });
+  ll.appendChild(d);
+});
+// view toggle
+function setView(v){
+  document.querySelectorAll('.viewtabs button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+  document.querySelectorAll('.stage').forEach(s=>s.hidden = s.dataset.view!==v);
+}
+document.querySelectorAll('.viewtabs button').forEach(b=>{
+  b.addEventListener('click',()=>setView(b.dataset.view));
+});
+// clone models into phones (read-only)
+document.querySelectorAll('.mini-model').forEach(slot=>{
+  const v=slot.dataset.clone;
+  const src=document.querySelector(`.stage.${v}`);
+  const c=src.cloneNode(true);
+  c.hidden=false; c.removeAttribute('style');
+  c.querySelectorAll('.m--int').forEach(x=>x.style.pointerEvents='none');
+  slot.appendChild(c);
+});
+</script>
