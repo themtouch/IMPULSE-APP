@@ -19,6 +19,7 @@ capa interactiva para representar la **jerarquía** de desarrollo por grupo musc
 - [Journey de 8 pantallas](#journey-de-8-pantallas)
 - [Sistema de jerarquías (tiers)](#sistema-de-jerarquías-tiers)
 - [Build: cómo se genera `index.html`](#build-cómo-se-genera-indexhtml)
+- [Build iOS (10x app / Xcode)](#build-ios-10x-app--xcode)
 - [Assets fuente (Google Drive)](#assets-fuente-google-drive)
 - [Verificación visual](#verificación-visual)
 - [Roadmap](#roadmap)
@@ -44,6 +45,13 @@ python3 -m http.server 8000
 ```
 impulse-app/
 ├── index.html                 # ← LA APP (build final, autocontenida, lista para abrir)
+├── project.yml                # spec XcodeGen → genera el proyecto iOS (para 10x app / Xcode)
+├── ios/
+│   └── Impulse/               # contenedor iOS nativo (SwiftUI + WKWebView) que carga index.html
+│       ├── ImpulseApp.swift
+│       ├── ImpulseWebView.swift
+│       ├── Info.plist
+│       └── Assets.xcassets/   # AppIcon + color de launch (#121212)
 ├── src/
 │   └── template.html          # plantilla de la app con placeholders (fuente editable)
 ├── assets/
@@ -200,6 +208,35 @@ posiciones por porcentaje con las fórmulas de arriba, y rellena los placeholder
 `/*FRONT_ASPECT*/`, `/*BACK_ASPECT*/`, `/*META_JSON*/`).
 
 **Dependencias:** solo Python 3 (stdlib). Los scripts de captura usan Node + Playwright/Chromium.
+
+---
+
+## Build iOS (10x app / Xcode)
+
+10x app (y Xcode) necesitan un proyecto iOS. Este repo lo trae vía **`project.yml`**
+([XcodeGen](https://github.com/yonaskolb/XcodeGen)), uno de los archivos que 10x app busca
+(`.xcodeproj`, `.xcworkspace` o `project.yml`).
+
+La app iOS es un **contenedor nativo SwiftUI + WKWebView** (`ios/Impulse/`) que carga
+`index.html` desde el bundle. Como el HTML es autocontenido (assets embebidos, sin red),
+se sirve como archivo local — no requiere servidor ni conexión.
+
+- **En 10x app:** sube el repo; al detectar `project.yml` genera el proyecto y compila.
+- **Local con Xcode:**
+
+  ```bash
+  brew install xcodegen     # una sola vez
+  xcodegen generate         # crea Impulse.xcodeproj desde project.yml
+  open Impulse.xcodeproj     # ⌘R para correr en simulador/dispositivo
+  ```
+
+Config del target: bundle id `com.themtouch.impulse`, iOS 16+, orientación vertical, tema
+oscuro. El ícono (`AppIcon`) está como placeholder — reemplázalo en `Assets.xcassets`.
+
+> **Nota de UX:** hoy `index.html` está maquetado como preview/landing (riel horizontal de
+> mockups + ancho máx. 1120). Dentro del WebView en un teléfono se ve, pero para una
+> experiencia 100% nativa de una sola pantalla conviene desarrollar las vistas en SwiftUI o
+> re-maquetar el HTML a layout mobile-first. Ver [Roadmap](#roadmap).
 
 ---
 
