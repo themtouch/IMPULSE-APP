@@ -10,13 +10,44 @@ def durl_svg(path):
         b = base64.b64encode(f.read()).decode()
     return "data:image/svg+xml;base64," + b
 
-# ---- base bodies (verbatim, they are the real render) ----
-FRONT_BASE = durl_svg(os.path.join(SVG, "Cuerpo completo front.svg"))
-BACK_BASE  = durl_svg(os.path.join(SVG, "Cuerpo completo back.svg"))
-
 # front-body bbox within 1402x1122 source
 FOX, FOY, FVW, FVH = 91.5, 31.5, 561.0, 1029.0
 BOX, BOY, BVW, BVH = 694.492, 34.5, 605.0, 1025.0
+SRCW, SRCH = 1402.0, 1122.0
+
+# ---- shared base: one downscaled JPEG (all SVGs embed the same render) ----
+LITE = os.path.join(ROOT, "svg-lite")
+def durl_jpg(path):
+    with open(path, "rb") as f:
+        return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+_shared = os.path.join(LITE, "body.jpg")
+if os.path.exists(_shared):
+    SHARED_BASE = durl_jpg(_shared)
+else:  # fallback: extract from the verbatim SVG (still one copy)
+    SHARED_BASE = durl_svg(os.path.join(SVG, "Cuerpo completo front.svg"))
+
+import re as _re
+def silhouette(name):
+    """Extract the full-body silhouette path from a base SVG -> mask data URI."""
+    s = open(os.path.join(SVG, name), encoding="utf-8").read()
+    vb = _re.search(r'viewBox="([^"]+)"', s).group(1)
+    mblock = _re.search(r'<mask[^>]*>(.*?)</mask>', s, _re.S).group(1)
+    paths = _re.findall(r'<path\b[^>]*\bd="([^"]+)"', mblock)
+    body = "".join(f'<path d="{d}" fill="#fff"/>' for d in paths)
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}">{body}</svg>'
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
+
+def crop(ox, oy, vw, vh, mask_uri):
+    """CSS to show one figure's bbox from the shared image, clipped to its silhouette."""
+    sw = SRCW / vw * 100.0
+    sh = SRCH / vh * 100.0
+    px = ox / (SRCW - vw) * 100.0
+    py = oy / (SRCH - vh) * 100.0
+    return (f"background-size:{sw:.4f}% {sh:.4f}%;background-position:{px:.4f}% {py:.4f}%;"
+            f"-webkit-mask:url({mask_uri}) 0 0/100% 100% no-repeat;"
+            f"mask:url({mask_uri}) 0 0/100% 100% no-repeat;")
+FRONT_CROP = crop(FOX, FOY, FVW, FVH, silhouette("Cuerpo completo front.svg"))
+BACK_CROP  = crop(BOX, BOY, BVW, BVH, silhouette("Cuerpo completo back.svg"))
 
 # muscle metadata: file, X, Y, W, H (in source space), key, label, group, tier, lagging
 FRONT = [
@@ -63,14 +94,23 @@ def layers(items, ox, oy, vw, vh):
 FRONT_LAYERS, FRONT_META = layers(FRONT, FOX, FOY, FVW, FVH)
 BACK_LAYERS,  BACK_META  = layers(BACK, BOX, BOY, BVW, BVH)
 
-TEMPLATE = open(os.path.join(ROOT, "template.html"), encoding="utf-8").read()
-html = (TEMPLATE
-        .replace("/*FRONT_BASE*/", FRONT_BASE)
-        .replace("/*BACK_BASE*/", BACK_BASE)
-        .replace("<!--FRONT_LAYERS-->", FRONT_LAYERS)
-        .replace("<!--BACK_LAYERS-->", BACK_LAYERS)
-        .replace("/*FRONT_ASPECT*/", f"{FVW}/{FVH}")
-        .replace("/*BACK_ASPECT*/", f"{BVW}/{BVH}")
-        .replace("/*META_JSON*/", json.dumps({"front":FRONT_META,"back":BACK_META}, ensure_ascii=False)))
-open(os.path.join(ROOT, "index.html"), "w", encoding="utf-8").write(html)
-print("wrote index.html", os.path.getsize(os.path.join(ROOT, "index.html")), "bytes")
+def inject(template_name, out_name):
+    tpl = open(os.path.join(ROOT, template_name), encoding="utf-8").read()
+    html = (tpl
+            .replace("/*SHARED_BASE*/", SHARED_BASE)
+            .replace("/*FRONT_CROP*/", FRONT_CROP)
+            .replace("/*BACK_CROP*/", BACK_CROP)
+            .replace("/*FRONT_BASE*/", SHARED_BASE)
+            .replace("/*BACK_BASE*/", SHARED_BASE)
+            .replace("<!--FRONT_LAYERS-->", FRONT_LAYERS)
+            .replace("<!--BACK_LAYERS-->", BACK_LAYERS)
+            .replace("/*FRONT_ASPECT*/", f"{FVW}/{FVH}")
+            .replace("/*BACK_ASPECT*/", f"{BVW}/{BVH}")
+            .replace("/*META_JSON*/", json.dumps({"front":FRONT_META,"back":BACK_META}, ensure_ascii=False)))
+    out = os.path.join(ROOT, out_name)
+    open(out, "w", encoding="utf-8").write(html)
+    print("wrote", out_name, os.path.getsize(out), "bytes")
+
+# functional app (app.html). The landing index.html is built separately with the
+# verbatim self-cropping base SVGs and is left untouched here.
+inject("app-template.html", "app.html")
