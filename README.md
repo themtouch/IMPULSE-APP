@@ -1,95 +1,147 @@
 # Impulse App
 
 **Impulse** es una app de entrenamiento **funcional** cuyo eje es un **modelo corporal
-interactivo** reconstruido a partir de SVG anatómicos reales. Registras tus series, y cada
-músculo del modelo **sube de jerarquía** (Iniciado → Élite) según el volumen que acumulas.
-El plan manda el volumen extra a lo que va rezagado.
+interactivo** reconstruido a partir de SVG anatómicos reales. Entras con tu correo, registras
+tus series, y cada músculo del modelo **se ilumina y sube de jerarquía** (Iniciado → Élite)
+según los kilos × repeticiones que acumulas. El modelo **arranca en blanco**: nada se ilumina
+hasta que registras datos.
 
 > *"Tu entrenamiento se adapta a tu físico, no al revés."*
 
-La app (`index.html`) es un **único archivo autocontenido (~256 KB)**: funciona offline, guarda
-tus datos en el dispositivo (localStorage), sin backend ni dependencias externas.
+- **App:** `index.html` (~290 KB) + biblioteca de **1,324 ejercicios con video** (`data/exercises.json`).
+- **Bilingüe** español / inglés, con selector al inicio.
+- **Datos por correo**, guardados en el dispositivo (localStorage), sin backend.
 
 ---
 
 ## Tabla de contenido
 
-- [Cómo usarla ya](#cómo-usarla-ya)
+- [Cómo usarla](#cómo-usarla)
+- [Login y datos por correo](#login-y-datos-por-correo)
 - [Funcionalidad](#funcionalidad)
-- [Registro de datos y motor de jerarquías](#registro-de-datos-y-motor-de-jerarquías)
+- [Motor de jerarquías (empieza en blanco)](#motor-de-jerarquías-empieza-en-blanco)
+- [Biblioteca de ejercicios (dataset)](#biblioteca-de-ejercicios-dataset)
+- [Planes y pagos](#planes-y-pagos)
+- [Idiomas](#idiomas)
 - [Qué hay en este repo](#qué-hay-en-este-repo)
-- [El modelo corporal: cómo está reconstruido](#el-modelo-corporal-cómo-está-reconstruido)
+- [El modelo corporal](#el-modelo-corporal)
 - [Design system](#design-system)
 - [Build](#build)
-- [Desplegar en Vercel (URL + métricas)](#desplegar-en-vercel-url--métricas)
+- [Desplegar en Vercel](#desplegar-en-vercel)
 - [Build iOS (10x app / Xcode)](#build-ios-10x-app--xcode)
 - [Camino a producción](#camino-a-producción)
 - [Roadmap](#roadmap)
 
 ---
 
-## Cómo usarla ya
+## Cómo usarla
 
-Tres formas:
+La biblioteca completa (1,324 ejercicios) se carga desde `data/exercises.json`, así que la app
+**debe servirse por HTTP** para verla completa:
 
-1. **Abrir el archivo:** abre `index.html` en cualquier navegador (o en el teléfono: descárgalo
-   y ábrelo en Safari/Chrome → *Añadir a pantalla de inicio* para usarlo como app offline).
-2. **Servir local:** `python3 -m http.server 8000` → `http://localhost:8000`.
-3. **Vercel:** despliega el repo para tener una URL usable en el teléfono ([abajo](#desplegar-en-vercel-url--métricas)).
+- **Recomendado — Vercel:** despliega el repo ([abajo](#desplegar-en-vercel)) y ábrela en el teléfono.
+- **Local:** `python3 -m http.server 8000` en la raíz del repo → `http://localhost:8000`.
+- **Archivo suelto (`file://`):** funciona con un set de respaldo de 13 ejercicios embebido
+  (sin el catálogo completo, porque `file://` no puede hacer `fetch` del JSON).
+
+---
+
+## Login y datos por correo
+
+Para entrar **se pide un correo** (Gmail o cualquiera). Cada correo tiene su **espacio de datos
+propio** (`localStorage: impulse.user.<correo>`): perfil, sesiones, plan y métricas se trackean
+por usuario. Cambiar de correo carga otra cuenta; *Cerrar sesión* vuelve al login.
+
+> Es identificación local por correo (sin servidor). Para **auth real multi-dispositivo** se
+> necesita backend + OAuth (Google) — ver [Camino a producción](#camino-a-producción).
 
 ---
 
 ## Funcionalidad
 
-App mobile-first con navegación por tabs. Pantallas:
-
 | Pantalla | Qué hace |
 |---|---|
-| **Registro (onboarding)** | Nombre, edad, género, experiencia y objetivo → crea tu perfil y **calibra el modelo corporal inicial** (la experiencia siembra el volumen base por músculo). |
-| **Inicio (dashboard)** | Saludo, **nivel**, racha, sesiones de la semana, volumen total, próxima sesión sugerida (según rezagados) y actividad reciente. Todo calculado de tus datos. |
-| **Entrenar** | Rutina recomendada (prioriza rezagados) o empezar por grupo muscular. |
-| **Sesión activa** | **Registro de series**: peso × reps por serie, añadir series/ejercicios, cronómetro, guardar. |
-| **Físico (modelo corporal)** | Modelo interactivo frente/espalda pintado por jerarquía; toca un músculo para ver volumen, rango y progreso; lista de rezagados; barras de todos los músculos. |
-| **Biblioteca** | 37 ejercicios mapeados a músculos primarios/secundarios, con buscador. |
-| **Ascenso de jerarquía** | Celebración full-screen cuando un músculo sube de rango tras guardar una sesión. |
-| **Perfil / Paywall** | Perfil, estado Pro, paywall Impulse Pro (demo), exportar datos (JSON) y reiniciar. |
+| **Login** | Correo + selector de idioma (ES/EN). Crea o carga tu cuenta. |
+| **Onboarding** | Nombre, objetivo y días/semana. **No siembra el modelo** (arranca en blanco). |
+| **Inicio** | Saludo, nivel, racha, sesiones de la semana, volumen total, próxima sesión (rezagados) y actividad reciente. |
+| **Entrenar** | Rutina recomendada (prioriza rezagados), sesión en blanco, o empezar por grupo muscular. |
+| **Sesión activa** | Registro de series (peso × reps), añadir series/ejercicios desde el catálogo, cronómetro, guardar. |
+| **Físico** | Modelo frente/espalda; músculos **apagados** hasta tener datos, luego pintados por rango; toca uno para ver volumen, rango y progreso; rezagados; barras de todos. |
+| **Biblioteca** | **1,324 ejercicios** con GIF, filtro por músculo y buscador; detalle con video + instrucciones (idioma elegido); añadir a la sesión. |
+| **Ascenso** | Celebración full-screen cuando un músculo sube de rango. |
+| **Perfil / Planes** | Cuenta, idioma, plan; paywall Normal $500 / Premium $1000; exportar datos; cerrar sesión; borrar datos. |
 
 ---
 
-## Registro de datos y motor de jerarquías
+## Motor de jerarquías (empieza en blanco)
 
-Todo persiste en `localStorage` bajo la clave `impulse.v1`:
+Todo persiste en `localStorage` bajo `impulse.user.<correo>`:
 
 ```jsonc
 {
-  "profile": { "name": "...", "age": "...", "sex": "...", "exp": "1-3", "goal": "...", "days": 4 },
+  "email": "tucorreo@gmail.com",
+  "profile": { "name": "...", "goal": "...", "days": 4 },
   "onboarded": true,
-  "pro": false,
-  "base":     { "pecho": 12000, "espalda": 9000, ... },   // baseline por experiencia
+  "plan": "free",           // free | normal | premium
   "sessions": [
-    { "date": "2026-07-25", "ts": 0, "durationSec": 0,
-      "exercises": [ { "id": "press-banca", "sets": [ { "w": "60", "r": "10" } ] } ] }
+    { "date": "2026-07-25", "durationSec": 0,
+      "exercises": [ { "id": "0025", "muscle": "pecho", "muscle_sec": ["triceps"],
+                       "sets": [ { "w": "60", "r": "10" } ] } ] }
   ]
 }
 ```
 
-**Motor determinista:**
+**Reglas:**
 
-- **Volumen por músculo** = `base` + Σ (peso × reps) de cada serie. El ejercicio suma al músculo
-  primario y al 50 % a los secundarios.
-- **Jerarquía (tier)** por umbrales de volumen acumulado:
+- **Sin datos = sin iluminar.** Un músculo con volumen 0 se muestra apagado (`—`), no se le
+  asigna rango. El modelo se enciende solo con lo que registras.
+- **Volumen por músculo** = Σ (peso × reps). El ejercicio suma 100 % al músculo primario y
+  50 % a los secundarios (mapeados desde el dataset).
+- **Rango (tier)** por umbrales de volumen acumulado:
   | Tier | Nombre | Umbral (kg) |
   |---|---|---|
-  | E | Iniciado | 0 |
+  | — | Sin datos | 0 |
+  | E | Iniciado | ≥ 1 |
   | D | Bronce | 2 500 |
   | C | Plata | 8 000 |
   | B | Oro | 18 000 |
   | A | Élite | 36 000 |
-- **Rezagados** = músculos por debajo de tu tier promedio, ordenados por menor volumen.
-- **Racha**, **sesiones de la semana**, **nivel** (`1 + √(volumen/900)`) y **detección de
-  ascenso** (comparación de tier antes/después de guardar) se derivan de las sesiones.
+- **Rezagados**, **racha**, **semana**, **nivel** y **detección de ascenso** se derivan de las sesiones.
 
-Cada sesión que registras recalcula el modelo y puede disparar un **ascenso de jerarquía**.
+---
+
+## Biblioteca de ejercicios (dataset)
+
+Los ejercicios vienen del dataset público
+[`hasaneyldrm/exercises-dataset`](https://github.com/hasaneyldrm/exercises-dataset)
+(© Gym visual), procesado a `data/exercises.json`:
+
+- **1,324 ejercicios**, todos los campos originales.
+- Instrucciones reducidas a **español + inglés** (el dataset trae 10 idiomas).
+- Cada ejercicio lleva un campo `muscle` (mapeado a los 13 músculos del modelo) y `muscle_sec`.
+- **GIF e imagen** se cargan desde el repo fuente vía
+  `raw.githubusercontent.com/...` (constante `MEDIA` en el código; para tráfico alto, cambiar a
+  un CDN como jsDelivr o auto-hospedar).
+
+Son **usables tal como vienen**: agregables a la rutina y al registro de métricas; al loguear
+una serie, el volumen se atribuye al músculo del ejercicio y actualiza el modelo.
+
+---
+
+## Planes y pagos
+
+- **Normal — $500 MXN/mes** · **Premium — $1000 MXN/mes.**
+- Al elegir un plan se pide **confirmar el correo** (re-login): los beneficios se otorgan a esa
+  cuenta (`plan` en el usuario). Es un flujo **demo** — no cobra; integrar **RevenueCat/Stripe**
+  para producción.
+
+---
+
+## Idiomas
+
+Español e inglés, con selector en el **login** y en **Perfil**. Toda la interfaz se traduce en
+caliente (diccionario `T` + `data-i18n`); las instrucciones de cada ejercicio se muestran en el
+idioma elegido (con respaldo al inglés).
 
 ---
 
@@ -97,53 +149,38 @@ Cada sesión que registras recalcula el modelo y puede disparar un **ascenso de 
 
 ```
 impulse-app/
-├── index.html                 # ← LA APP funcional (autocontenida, offline, ~256 KB)
-├── vercel.json                # config de deploy estático
-├── project.yml                # spec XcodeGen → proyecto iOS (10x app / Xcode)
-├── ios/Impulse/               # contenedor iOS nativo (SwiftUI + WKWebView) que carga index.html
+├── index.html                 # ← LA APP funcional (mobile-first, ~290 KB)
+├── data/exercises.json         # 1,324 ejercicios (es+en) — la biblioteca
+├── vercel.json                 # config de deploy estático
+├── project.yml + ios/          # contenedor iOS (SwiftUI + WKWebView) para 10x app / Xcode
 ├── src/
-│   ├── app-template.html      # plantilla de la app (fuente; se compila a index.html)
-│   └── template.html          # plantilla de la landing/preview
+│   ├── app-template.html       # fuente de la app (se compila a index.html)
+│   └── template.html           # fuente de la landing
 ├── scripts/
-│   ├── build.py               # inyecta modelo (base compartida + stencils) en las plantillas
-│   ├── shrink.py              # deduplica y comprime la imagen base compartida
-│   └── test-app.cjs           # prueba funcional headless (Playwright)
+│   ├── build.py                # inyecta modelo + fallback en las plantillas
+│   ├── shrink.py               # deduplica/comprime la imagen base
+│   ├── fallback.json           # 13 ejercicios de respaldo (uso file://)
+│   └── test-app.cjs            # prueba funcional headless
 ├── assets/
-│   ├── svg/                   # 18 SVG originales del usuario (VERBATIM)
-│   ├── stencils/              # 16 stencils de máscara por músculo
-│   └── svg-lite/body.jpg      # imagen base compartida, downscaled (una sola vez)
-├── docs/
-│   ├── geometry.md            # tabla de offsets y bounding boxes
-│   ├── landing.html           # landing/preview de interfaz
-│   └── screenshots/           # renders (app-* = app funcional)
+│   ├── svg/ · stencils/        # 18 SVG originales (verbatim) + 16 stencils
+│   └── svg-lite/body.jpg       # imagen base compartida, comprimida
+├── docs/ (geometry.md · landing.html · screenshots/)
 └── README.md
 ```
 
 ---
 
-## El modelo corporal: cómo está reconstruido
+## El modelo corporal
 
-Los 18 SVG **no son dibujos independientes**: todos incrustan **el mismo render de cuerpo
-completo** (1402 × 1122 px, figura de frente a la izquierda y de espalda a la derecha), y cada
-archivo es un **recorte enmascarado** de esa imagen compartida. La posición del recorte está en
-el `x`/`y` del `<rect>`.
+Los 18 SVG **no son dibujos independientes**: todos incrustan el **mismo render de cuerpo
+completo** (1402 × 1122 px). Cada archivo es un recorte enmascarado; su posición está en el
+`x`/`y` del `<rect>`. Se reconstruye posicionando cada músculo por porcentaje relativo al
+bounding box de su figura (frente/espalda). La app incrusta la imagen **una sola vez** y muestra
+frente/espalda por recorte + silueta CSS; cada músculo usa su contorno (`stencils/`) como
+`mask-image` para pintar el rango. **Nada se redibujó.** Detalle en [`docs/geometry.md`](docs/geometry.md).
 
-**Reconstrucción (sin recrear nada):** cada músculo se posiciona por porcentaje relativo al
-bounding box de su figura:
-
-```
-left = (X − OX)/VW·100 %   top = (Y − OY)/VH·100 %   width = W/VW·100 %   height = H/VH·100 %
-```
-
-| Figura  | OX      | OY   | VW  | VH   |
-|---------|---------|------|-----|------|
-| Frente  | 91.5    | 31.5 | 561 | 1029 |
-| Espalda | 694.492 | 34.5 | 605 | 1025 |
-
-Como los 18 SVG embeben la **misma** imagen, la app la incrusta **una sola vez** (`svg-lite/body.jpg`)
-y muestra frente/espalda por recorte CSS, clipando a la silueta con la máscara de contorno. De
-cada músculo se usa su contorno (`assets/stencils/`) como `mask-image` para pintar el color de
-jerarquía. Tabla completa en [`docs/geometry.md`](docs/geometry.md). **Nada se redibujó.**
+Los músculos iluminados llevan un borde oscuro (drop-shadow) para separar cada sección, y la
+paleta de rangos es de colores **vivos e intensos**.
 
 ---
 
@@ -151,73 +188,71 @@ jerarquía. Tabla completa en [`docs/geometry.md`](docs/geometry.md). **Nada se 
 
 | Token | Valor |
 |---|---|
-| Fondo / Superficie / Elevado | `#121212` / `#1E1E1E` / `#242424` |
-| Texto / Acento (candy blue) | `#F5F5F5` / `#B2D5E5` |
-| Radio | `16px` · Tipografía SF Pro (system stack), números tabulares |
-| Tiers | A `#B2D5E5` · B `#E0BE63` · C `#A6B2BD` · D `#C08552` · E `#6B7280` |
+| Fondo / Superficie / Elevado | `#0E0F12` / `#181A1F` / `#20242B` |
+| Texto / Acento | `#F6F8FA` / `#37C6F4` (+ `#22E3B0`) |
+| Radio | `16px` · SF Pro (system stack), números tabulares |
+| Tiers (vivos) | A `#3ED0FF` · B `#FFCA3A` · C `#B8C6D6` · D `#FF8A3D` · E `#8A97A6` · apagado `#2A313A` |
 
 ---
 
 ## Build
 
 ```bash
-python3 scripts/shrink.py    # genera assets/svg-lite/body.jpg (imagen base compartida)
+python3 scripts/shrink.py    # genera assets/svg-lite/body.jpg
 python3 scripts/build.py     # compila src/app-template.html → index.html
-python3 scripts/test-app.cjs # (opcional) prueba funcional headless
 ```
 
-Solo requiere Python 3 (+ Pillow para `shrink.py`). El test usa Node + Playwright.
+Requiere Python 3 (+ Pillow para `shrink.py`). *(build.py espera los assets junto a él; en el
+repo están separados por claridad — el `index.html` ya viene compilado.)*
 
 ---
 
-## Desplegar en Vercel (URL + métricas)
+## Desplegar en Vercel
 
-`index.html` es estático y autocontenido, así que el deploy es directo:
+`index.html` + `data/exercises.json` son estáticos:
 
-1. En Vercel → **Add New → Project → Import** el repo `themtouch/impulse-app`.
-2. Framework preset: **Other** (sitio estático). Root directory: `/`. Sin build command.
-3. **Deploy** → obtienes una URL usable en el teléfono.
-4. Activa **Vercel Web Analytics** (o integra PostHog/Firebase) para métricas de uso reales.
+1. Vercel → **Add New → Project → Import** el repo `themtouch/impulse-app`.
+2. Framework: **Other** · Root: `/` · sin build command.
+3. **Deploy** → URL usable en el teléfono. Activa **Vercel Web Analytics** para métricas de uso.
 
-Cada push a `main` redeploya automáticamente.
+Cada push a `main` redeploya. *(La biblioteca completa necesita este deploy — o un servidor
+local — porque carga `data/exercises.json` por `fetch`.)*
 
 ---
 
 ## Build iOS (10x app / Xcode)
 
-Para iOS, el repo trae **`project.yml`** ([XcodeGen](https://github.com/yonaskolb/XcodeGen)) —
-uno de los archivos que 10x app busca. La app iOS es un contenedor **SwiftUI + WKWebView**
-(`ios/Impulse/`) que carga `index.html` desde el bundle (offline).
+`project.yml` ([XcodeGen](https://github.com/yonaskolb/XcodeGen)) genera el proyecto; la app iOS
+es un contenedor **SwiftUI + WKWebView** (`ios/Impulse/`) que carga `index.html`.
 
 ```bash
-brew install xcodegen && xcodegen generate && open Impulse.xcodeproj   # ⌘R para correr
+brew install xcodegen && xcodegen generate && open Impulse.xcodeproj
 ```
 
-Target: `com.themtouch.impulse`, iOS 16+, vertical, tema oscuro.
-
-> El WebView es el camino rápido para probar en dispositivo. Para tienda, valora una app
-> nativa/Expo (ver abajo): Apple puede rechazar wrappers de web muy simples (guía 4.2).
+Sin red, iOS muestra el set de respaldo; para el catálogo completo, empaquetar `data/` o
+apuntar a la URL de Vercel.
 
 ---
 
 ## Camino a producción
 
-Para lanzar con **métricas serias, control de versiones y control total** (recomendado):
+Para lanzar con **métricas serias, control de versiones y control total**:
 
-- **Base de código propia** en este repo (ya está) → **Expo (React Native)** para iOS + Android
-  con una sola base, o SwiftUI nativo si es solo iOS.
-- **Métricas:** PostHog / Firebase / Amplitude (eventos, embudos, retención).
-- **Suscripciones:** RevenueCat + Stripe para el paywall.
-- **Versionado / releases:** EAS Build & Submit + OTA updates.
-
-Esta app web funcional sirve de **prototipo jugable y spec viva** de todo el producto.
+- **Auth real:** backend + OAuth (Google) para cuentas multi-dispositivo (hoy es por correo local).
+- **Base de código:** este repo → **Expo (React Native)** iOS + Android, o SwiftUI nativo.
+- **Métricas:** PostHog / Firebase / Amplitude. **Pagos:** RevenueCat + Stripe.
+- **Media:** auto-hospedar los GIF o servirlos por CDN (jsDelivr) en vez de `raw.githubusercontent`.
 
 ---
 
 ## Roadmap
 
-- [ ] Portar el modelo corporal a **componente React/Expo** (`AnimatedBodyModel`).
-- [ ] Conectar **analytics** y RevenueCat/Stripe.
-- [ ] GIFs de ejecución y detalle de ejercicio en la biblioteca.
-- [ ] Historial y progreso a largo plazo (gráficas de volumen por músculo).
-- [ ] Sincronización en la nube (hoy los datos viven solo en el dispositivo).
+- [ ] Auth real (OAuth) y sincronización en la nube.
+- [ ] Portar el modelo a componente React/Expo.
+- [ ] Conectar analytics + RevenueCat/Stripe.
+- [ ] Gráficas de volumen por músculo en el tiempo.
+- [ ] Nombres de ejercicios en español (el dataset trae nombre solo en inglés).
+
+---
+
+*Ejercicios: © Gym visual — https://gymvisual.com/ (vía hasaneyldrm/exercises-dataset).*

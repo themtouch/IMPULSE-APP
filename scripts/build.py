@@ -96,7 +96,10 @@ BACK_LAYERS,  BACK_META  = layers(BACK, BOX, BOY, BVW, BVH)
 
 def inject(template_name, out_name):
     tpl = open(os.path.join(ROOT, template_name), encoding="utf-8").read()
+    fb_path = os.path.join(ROOT, "fallback.json")
+    fallback = open(fb_path, encoding="utf-8").read() if os.path.exists(fb_path) else "[]"
     html = (tpl
+            .replace("/*FALLBACK_JSON*/", fallback)
             .replace("/*SHARED_BASE*/", SHARED_BASE)
             .replace("/*FRONT_CROP*/", FRONT_CROP)
             .replace("/*BACK_CROP*/", BACK_CROP)
