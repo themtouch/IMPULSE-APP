@@ -10,6 +10,13 @@ npm-debug.log*
 __pycache__/
 *.pyc
 
+# Secrets / env — nunca commitear
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
 # Editor
 .vscode/
 .idea/

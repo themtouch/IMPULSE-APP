@@ -547,6 +547,12 @@ const DATA_URL='./data/exercises.json';
 const MEDIA='https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/';
 const FALLBACK=/*FALLBACK_JSON*/;
 
+/* ---------- XSS hardening: escape any external/user string before innerHTML ---------- */
+const ESC_MAP={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'};
+function esc(s){return String(s==null?'':s).replace(/[&<>"'`]/g,c=>ESC_MAP[c]);}
+// URL used in src="": only allow http(s)/relative; escape quotes. Blocks javascript:, data:HTML, breakout.
+function safeURL(u){u=String(u||'');return /^(https?:)?\/\//i.test(u)||/^\.?\//.test(u)?esc(u):'';}
+
 /* ---------- i18n ---------- */
 const T={
  es:{streak:'Racha',week:'Esta semana',sessions:'Sesiones',totalvol:'Volumen total',nextsession:'Próxima sesión',
@@ -834,8 +840,8 @@ function renderPick(q){
   if(q)pool=pool.filter(e=>exName(e).toLowerCase().includes(q)||(e.muscle&&mlabel(e.muscle).toLowerCase().includes(q))||(e.target||'').includes(q));
   pool.slice(0,60).forEach(e=>{
     const r=document.createElement('div');r.className='row';
-    r.innerHTML=`<div class="thumb"><img loading="lazy" src="${gifURL(e)}" alt=""></div>
-      <div class="meta"><div class="t">${exName(e)}</div><div class="s">${e.muscle?mlabel(e.muscle):e.target} · ${e.equipment}</div></div>
+    r.innerHTML=`<div class="thumb"><img loading="lazy" src="${safeURL(gifURL(e))}" alt=""></div>
+      <div class="meta"><div class="t">${esc(exName(e))}</div><div class="s">${e.muscle?mlabel(e.muscle):esc(e.target)} · ${esc(e.equipment)}</div></div>
       <span class="pill">+</span>`;
     r.addEventListener('click',()=>{addExercise(e.id);closeSheets();if(!sessionActive)startSession();toast(t('added')+': '+exName(e));});
     list.appendChild(r);
@@ -851,7 +857,7 @@ function openExercise(id,fromSession){
   $('#ex-name').textContent=exName(e);
   $('#ex-meta').textContent=`${e.muscle?mlabel(e.muscle):e.target} · ${e.equipment}`;
   const tp=$('#ex-tier');const v=volumes();const tr=e.muscle?tierOf(v[e.muscle]):null;tp.textContent=tr||'—';tp.className='pill '+(tr||'none');
-  const g=$('#ex-gif');g.src=gifURL(e);
+  const g=$('#ex-gif');g.src=safeURL(gifURL(e));
   const ol=$('#ex-steps');ol.innerHTML='';exSteps(e).forEach(s=>{const li=document.createElement('li');li.textContent=s;ol.appendChild(li);});
   $('#ex-add').onclick=()=>{addExercise(id);closeSheets();if(!sessionActive)startSession();toast(t('added')+': '+exName(e));};
   $('#sheet-ex').classList.add('on');
@@ -874,8 +880,8 @@ function renderSession(){
     const def=EXBY[ex.id]||{name:ex.id,muscle:null,equipment:''};
     const card=document.createElement('div');card.className='card';
     card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <b style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${def.name}</b>
-      <span class="pill">${def.muscle?mlabel(def.muscle):(def.target||'')}</span></div>`;
+      <b style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(def.name)}</b>
+      <span class="pill">${def.muscle?mlabel(def.muscle):esc(def.target||'')}</span></div>`;
     ex.sets.forEach((st,si)=>{
       const row=document.createElement('div');row.className='setrow';
       row.innerHTML=`<span class="ix">${si+1}</span>
@@ -938,8 +944,8 @@ function renderInicio(){
   else{
     nf.innerHTML=t('focuson')+' <b style="color:#fff">'+lags.slice(0,2).map(x=>mlabel(x.m)).join('</b>, <b style="color:#fff">')+'</b>.';
     nl.innerHTML='';recommend(lags).slice(0,3).forEach(e=>{
-      nl.innerHTML+=`<div class="row"><div class="thumb"><img loading="lazy" src="${gifURL(e)}" alt=""></div>
-        <div class="meta"><div class="t">${exName(e)}</div><div class="s">${mlabel(e.muscle)} · 4 × 8–10</div></div></div>`;
+      nl.innerHTML+=`<div class="row"><div class="thumb"><img loading="lazy" src="${safeURL(gifURL(e))}" alt=""></div>
+        <div class="meta"><div class="t">${esc(exName(e))}</div><div class="s">${mlabel(e.muscle)} · 4 × 8–10</div></div></div>`;
     });
   }
   const rc=$('#recent');rc.innerHTML='';
@@ -965,13 +971,13 @@ function renderEntrenar(){
   const rf=$('#rec-focus');
   rf.innerHTML=lags.length?(t('focuson')+' <b style="color:#fff">'+lags.slice(0,2).map(x=>mlabel(x.m)).join('</b>, <b style="color:#fff">')+'</b>.'):t('start_hint');
   const rl=$('#rec-list');rl.innerHTML='';
-  recommend(lags).slice(0,4).forEach(e=>{rl.innerHTML+=`<div class="row"><div class="thumb"><img loading="lazy" src="${gifURL(e)}"></div><div class="meta"><div class="t">${exName(e)}</div><div class="s">${mlabel(e.muscle)} · 4 × 8–10</div></div></div>`;});
+  recommend(lags).slice(0,4).forEach(e=>{rl.innerHTML+=`<div class="row"><div class="thumb"><img loading="lazy" src="${safeURL(gifURL(e))}"></div><div class="meta"><div class="t">${esc(exName(e))}</div><div class="s">${mlabel(e.muscle)} · 4 × 8–10</div></div></div>`;});
   const seg=$('#grp-seg');seg.innerHTML='';grpSel=grpSel||'pecho';
   Object.keys(MUS).forEach(m=>{const btn=document.createElement('button');btn.textContent=mlabel(m);btn.className=m===grpSel?'on':'';btn.style.flex='0 0 auto';btn.addEventListener('click',()=>{grpSel=m;renderEntrenar();});seg.appendChild(btn);});
   const ge=$('#grp-ex');ge.innerHTML='';
   exForMuscle(grpSel).slice(0,30).forEach(e=>{
     const r=document.createElement('div');r.className='row';
-    r.innerHTML=`<div class="thumb"><img loading="lazy" src="${gifURL(e)}"></div><div class="meta"><div class="t">${exName(e)}</div><div class="s">${e.equipment}</div></div><span class="pill">+</span>`;
+    r.innerHTML=`<div class="thumb"><img loading="lazy" src="${safeURL(gifURL(e))}"></div><div class="meta"><div class="t">${esc(exName(e))}</div><div class="s">${esc(e.equipment)}</div></div><span class="pill">+</span>`;
     r.addEventListener('click',()=>{draft=draft||{exercises:[]};addExercise(e.id,true);startSession();});
     ge.appendChild(r);
   });
@@ -1000,8 +1006,8 @@ function renderLib(){
   show.forEach(e=>{
     const tr=e.muscle?tierOf(v[e.muscle]):null;
     const r=document.createElement('div');r.className='row';
-    r.innerHTML=`<div class="thumb"><img loading="lazy" src="${gifURL(e)}" alt=""></div>
-      <div class="meta"><div class="t">${exName(e)}</div><div class="s">${e.muscle?mlabel(e.muscle):e.target} · ${e.equipment}</div></div>
+    r.innerHTML=`<div class="thumb"><img loading="lazy" src="${safeURL(gifURL(e))}" alt=""></div>
+      <div class="meta"><div class="t">${esc(exName(e))}</div><div class="s">${e.muscle?mlabel(e.muscle):esc(e.target)} · ${esc(e.equipment)}</div></div>
       <span class="pill ${tr||'none'}">${tr||'—'}</span>`;
     r.addEventListener('click',()=>openExercise(e.id));lib.appendChild(r);
   });
