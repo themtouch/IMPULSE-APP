@@ -396,9 +396,18 @@
       <div class="brandmark"><span class="mark">I</span> Impulse</div>
       <h1 class="big" style="text-align:center" data-i18n="gate_title">Entra con tu correo</h1>
       <p class="sub" style="text-align:center;margin-top:8px" data-i18n="gate_sub">Tus métricas se guardan y se trackean por correo. Usa Gmail o cualquier correo.</p>
-      <label class="fld"><input class="txt" id="in-email" type="email" inputmode="email" autocomplete="email" placeholder="tucorreo@gmail.com" /></label>
-      <button class="btn" id="gate-enter" data-i18n="enter">Entrar</button>
-      <div class="empty" data-i18n="gate_note">No se envía nada a un servidor: la sesión identifica tus datos por correo en este dispositivo.</div>
+      <div id="gate-form">
+        <label class="fld"><input class="txt" id="in-email" type="email" inputmode="email" autocomplete="email" placeholder="tucorreo@gmail.com" /></label>
+        <button class="btn" id="gate-enter" data-i18n="enter">Entrar</button>
+        <div class="empty" data-i18n="gate_note">Te enviamos un enlace seguro a tu correo. Sin contraseñas. Tus datos se guardan y se sincronizan en la nube.</div>
+      </div>
+      <div id="gate-sent" style="display:none;text-align:center">
+        <div style="font-size:2.6rem;margin:6px 0">✉️</div>
+        <h1 class="big" data-i18n="magic_sent">Revisa tu correo</h1>
+        <p class="sub" style="margin-top:8px"><span data-i18n="magic_sent_sub">Te enviamos un enlace mágico a</span><br><b id="gate-sent-email"></b></p>
+        <p class="sub" data-i18n="magic_spam" style="margin-top:10px;opacity:.7">Ábrelo desde este mismo dispositivo para entrar. Si no lo ves, revisa spam.</p>
+        <button class="btn" id="gate-resend" data-i18n="resend">Reenviar enlace</button>
+      </div>
     </div>
   </div>
 
@@ -543,9 +552,8 @@
     <div class="panel">
       <div class="grip"></div>
       <h3 id="plan-title">—</h3>
-      <div class="sub" id="plan-sub" data-i18n="plan_login_sub">Confirma tu correo para activar los beneficios en tu cuenta.</div>
-      <label class="fld"><input class="txt" id="plan-email" type="email" inputmode="email" placeholder="tucorreo@gmail.com" /></label>
-      <button class="btn" id="plan-activate" data-i18n="activate">Activar beneficios</button>
+      <div class="sub" id="plan-sub" data-i18n="plan_login_sub">El pago seguro (Stripe) se activa en la siguiente fase. Tu plan se otorgará automáticamente al confirmarse el pago.</div>
+      <button class="btn" id="plan-activate" data-i18n="activate">Continuar al pago</button>
     </div>
   </div>
 
@@ -556,6 +564,62 @@
 <script>
 const META = {"front": [{"key": "trapecio", "label": "Trapecio", "tier": "C", "group": "Espalda", "lag": false}, {"key": "hombros", "label": "Hombros", "tier": "B", "group": "Hombros", "lag": false}, {"key": "pecho", "label": "Pecho", "tier": "A", "group": "Pecho", "lag": false}, {"key": "biceps", "label": "Bíceps", "tier": "B", "group": "Brazos", "lag": false}, {"key": "antebrazos", "label": "Antebrazos", "tier": "D", "group": "Brazos", "lag": true}, {"key": "oblicuos", "label": "Oblicuos", "tier": "C", "group": "Core", "lag": false}, {"key": "abdomen", "label": "Abdomen", "tier": "B", "group": "Core", "lag": false}, {"key": "cuadriceps", "label": "Cuádriceps", "tier": "A", "group": "Piernas", "lag": false}, {"key": "pantorrillas", "label": "Pantorrillas", "tier": "E", "group": "Piernas", "lag": true}], "back": [{"key": "espalda", "label": "Espalda", "tier": "A", "group": "Espalda", "lag": false}, {"key": "triceps", "label": "Tríceps", "tier": "C", "group": "Brazos", "lag": true}, {"key": "gluteos", "label": "Glúteos", "tier": "B", "group": "Piernas", "lag": false}, {"key": "isquios", "label": "Isquiotibiales", "tier": "D", "group": "Piernas", "lag": true}, {"key": "pantorrillasb", "label": "Pantorrillas", "tier": "E", "group": "Piernas", "lag": true}]};
 const DATA_URL='./data/exercises.json';
+
+/* ---------- Supabase (auth real + datos en la nube) ---------- */
+const SB_URL='https://ktmtiekavogqwgridiyx.supabase.co';
+const SB_KEY='sb_publishable_gnR1jaKa7AnT3dUXppprUg_MFqoUBpc';
+const SB_SESS='impulse.sb.session';
+const sb={
+  sess:null,
+  load(){try{this.sess=JSON.parse(localStorage.getItem(SB_SESS))||null}catch(e){this.sess=null}return this.sess;},
+  store(s){this.sess=s;if(s)localStorage.setItem(SB_SESS,JSON.stringify(s));else localStorage.removeItem(SB_SESS);},
+  ready(){return !!(this.sess&&this.sess.access_token);},
+  h(auth){const o={'apikey':SB_KEY,'Content-Type':'application/json'};if(auth&&this.ready())o['Authorization']='Bearer '+this.sess.access_token;return o;},
+  async sendMagic(email){
+    const redirect=location.origin+location.pathname;
+    const r=await fetch(SB_URL+'/auth/v1/otp?redirect_to='+encodeURIComponent(redirect),{
+      method:'POST',headers:this.h(false),body:JSON.stringify({email,create_user:true})});
+    if(!r.ok){let m='';try{const j=await r.json();m=j.msg||j.error_description||j.error||''}catch(e){}throw new Error(m||('HTTP '+r.status));}
+    return true;
+  },
+  async handleCallback(){
+    const hash=location.hash||'';
+    if(hash.indexOf('access_token=')<0){
+      if(hash.indexOf('error')>=0){history.replaceState(null,'',location.pathname+location.search);}
+      return false;
+    }
+    const p=new URLSearchParams(hash.slice(1));
+    const at=p.get('access_token'),rt=p.get('refresh_token');
+    history.replaceState(null,'',location.pathname+location.search);
+    if(!at)return false;
+    this.store({access_token:at,refresh_token:rt,expires_at:Date.now()+(parseInt(p.get('expires_in')||'3600',10)*1000)});
+    await this.fetchUser();
+    return true;
+  },
+  async fetchUser(){
+    const r=await fetch(SB_URL+'/auth/v1/user',{headers:this.h(true)});
+    if(!r.ok)return null;
+    const u=await r.json();
+    if(this.sess){this.sess.uid=u.id;this.sess.email=(u.email||'').toLowerCase();this.store(this.sess);}
+    return u;
+  },
+  async ensureFresh(){
+    if(!this.ready())return false;
+    if(this.sess.expires_at&&Date.now()>this.sess.expires_at-60000&&this.sess.refresh_token){
+      const r=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:this.h(false),body:JSON.stringify({refresh_token:this.sess.refresh_token})});
+      if(r.ok){const d=await r.json();this.store({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+(d.expires_in*1000),uid:this.sess.uid,email:this.sess.email});}
+      else{this.store(null);return false;}
+    }
+    return true;
+  },
+  signOut(){if(this.ready()){fetch(SB_URL+'/auth/v1/logout',{method:'POST',headers:this.h(true)}).catch(()=>{});}this.store(null);},
+  async getSessions(){const r=await fetch(SB_URL+'/rest/v1/sessions?select=*&order=date.asc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  insertSession(row){return fetch(SB_URL+'/rest/v1/sessions',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=minimal'}),body:JSON.stringify(row)});},
+  async getProfile(){if(!this.sess||!this.sess.uid)return null;const r=await fetch(SB_URL+'/rest/v1/profiles?select=*&id=eq.'+this.sess.uid,{headers:this.h(true)});if(!r.ok)return null;const a=await r.json();return a[0]||null;},
+  upsertProfile(p){return fetch(SB_URL+'/rest/v1/profiles?on_conflict=id',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(Object.assign({id:this.sess.uid},p))});},
+  async getSub(){if(!this.sess||!this.sess.uid)return null;const r=await fetch(SB_URL+'/rest/v1/subscriptions?select=*&user_id=eq.'+this.sess.uid,{headers:this.h(true)});if(!r.ok)return null;const a=await r.json();return a[0]||null;}
+};
+sb.load();
 // media host for exercise gifs/images (from the source dataset repo).
 // raw.githubusercontent is verified working; for high traffic switch to a CDN (jsDelivr) or self-host.
 const MEDIA='https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/';
@@ -578,8 +642,9 @@ const T={
   exercises:'Ejercicios',search_ph:'Buscar ejercicio o músculo…',profile:'Perfil',seeplans:'Ver planes',summary:'Resumen',level:'Nivel',
   lang:'Idioma',export:'Exportar mis datos (JSON)',logout:'Cerrar sesión',reset:'Borrar mis datos',
   localnote:'Impulse · tus datos se guardan por correo en este dispositivo',nav_home:'Inicio',nav_train:'Entrenar',nav_body:'Físico',
-  nav_lib:'Biblioteca',nav_profile:'Perfil',gate_title:'Entra con tu correo',gate_sub:'Tus métricas se guardan y se trackean por correo. Usa Gmail o cualquier correo.',
-  enter:'Entrar',gate_note:'No se envía nada a un servidor: la sesión identifica tus datos por correo en este dispositivo.',
+  nav_lib:'Biblioteca',nav_profile:'Perfil',gate_title:'Entra con tu correo',gate_sub:'Recibe un enlace seguro en tu correo. Tus métricas se guardan y sincronizan en la nube.',
+  enter:'Enviar enlace',gate_note:'Te enviamos un enlace seguro a tu correo. Sin contraseñas. Tus datos se guardan y se sincronizan en la nube.',
+  sending:'Enviando…',magic_sent:'Revisa tu correo',magic_sent_sub:'Te enviamos un enlace mágico a',magic_spam:'Ábrelo desde este mismo dispositivo para entrar. Si no lo ves, revisa spam.',resend:'Reenviar enlace',magic_err:'No se pudo enviar el enlace. Revisa el correo e intenta de nuevo.',pay_soon:'Pago seguro con Stripe — próximamente. Tu plan se activará al confirmar el pago.',
   onb_name_t:'¿Cómo te llamas?',continue:'Continuar',onb_goal_t:'Tu objetivo',goal_hyp:'Ganar músculo (hipertrofia)',goal_str:'Fuerza',
   goal_reco:'Recomposición',onb_days:'Días por semana',onb_start:'Empezar',onb_note:'Tu modelo empieza en blanco. Se ilumina y sube de rango solo con lo que registres.',
   volume:'Volumen',rank:'Rango',trainthis:'Entrenar este músculo',addexercise:'Añadir ejercicio',howto:'Cómo se hace',addtosession:'Añadir a la sesión',
@@ -588,7 +653,7 @@ const T={
   feat_n2:'Historial y progreso sin límite',feat_n3:'Biblioteca completa con video',choose_normal:'Elegir Normal · $500',plan_premium:'Premium',
   feat_p1:'Todo lo de Normal',feat_p2:'Coach 1:1 y ajustes de plan ilimitados',feat_p3:'Fases de volumen y definición guiadas',
   choose_premium:'Elegir Premium · $1000',pw_demo:'Pago demo — no se cobra. Integra RevenueCat/Stripe para producción.',
-  plan_login_sub:'Confirma tu correo para activar los beneficios en tu cuenta.',activate:'Activar beneficios',loading:'Cargando ejercicios…',
+  plan_login_sub:'El pago seguro (Stripe) se activa en la siguiente fase. Tu plan se otorgará automáticamente al confirmarse el pago.',activate:'Continuar al pago',loading:'Cargando ejercicios…',
   sindatos:'Sin datos',sinentrenar:'Sin entrenar',untrained_hint:'Empieza a registrar para iluminar tu modelo.',start_hint:'Registra tu primera serie para empezar a subir de rango.',
   hola:'Hola',sets:'series',all:'Todos',saved:'Sesión guardada',added:'Añadido',logset:'Registra al menos una serie',
   discard:'¿Descartar esta sesión? Se perderá lo registrado.',resetq:'¿Borrar tus datos de esta cuenta?',
@@ -606,8 +671,9 @@ const T={
   exercises:'Exercises',search_ph:'Search exercise or muscle…',profile:'Profile',seeplans:'See plans',summary:'Summary',level:'Level',
   lang:'Language',export:'Export my data (JSON)',logout:'Log out',reset:'Delete my data',
   localnote:'Impulse · your data is stored per email on this device',nav_home:'Home',nav_train:'Train',nav_body:'Physique',
-  nav_lib:'Library',nav_profile:'Profile',gate_title:'Sign in with your email',gate_sub:'Your metrics are saved and tracked per email. Use Gmail or any email.',
-  enter:'Enter',gate_note:'Nothing is sent to a server: the session identifies your data by email on this device.',
+  nav_lib:'Library',nav_profile:'Profile',gate_title:'Sign in with your email',gate_sub:'Get a secure link in your inbox. Your metrics are saved and synced to the cloud.',
+  enter:'Send link',gate_note:'We email you a secure link. No passwords. Your data is saved and synced to the cloud.',
+  sending:'Sending…',magic_sent:'Check your email',magic_sent_sub:'We sent a magic link to',magic_spam:'Open it on this same device to sign in. If you don’t see it, check spam.',resend:'Resend link',magic_err:'Could not send the link. Check the email and try again.',pay_soon:'Secure payment with Stripe — coming soon. Your plan activates once payment is confirmed.',
   onb_name_t:'What is your name?',continue:'Continue',onb_goal_t:'Your goal',goal_hyp:'Build muscle (hypertrophy)',goal_str:'Strength',
   goal_reco:'Recomposition',onb_days:'Days per week',onb_start:'Start',onb_note:'Your model starts blank. It lights up and ranks up only with what you log.',
   volume:'Volume',rank:'Rank',trainthis:'Train this muscle',addexercise:'Add exercise',howto:'How to',addtosession:'Add to session',
@@ -616,7 +682,7 @@ const T={
   feat_n2:'Unlimited history and progress',feat_n3:'Full library with video',choose_normal:'Choose Normal · $500',plan_premium:'Premium',
   feat_p1:'Everything in Normal',feat_p2:'1:1 coach and unlimited plan tweaks',feat_p3:'Guided bulking and cutting phases',
   choose_premium:'Choose Premium · $1000',pw_demo:'Demo payment — nothing is charged. Integrate RevenueCat/Stripe for production.',
-  plan_login_sub:'Confirm your email to activate the benefits on your account.',activate:'Activate benefits',loading:'Loading exercises…',
+  plan_login_sub:'Secure payment (Stripe) activates in the next phase. Your plan is granted automatically once payment is confirmed.',activate:'Continue to payment',loading:'Loading exercises…',
   sindatos:'No data',sinentrenar:'Untrained',untrained_hint:'Start logging to light up your model.',start_hint:'Log your first set to start ranking up.',
   hola:'Hi',sets:'sets',all:'All',saved:'Session saved',added:'Added',logset:'Log at least one set',
   discard:'Discard this session? Logged data will be lost.',resetq:'Delete this account\'s data?',
@@ -721,15 +787,22 @@ let toT;function toast(m){const el=$('#toast');el.textContent=m;el.classList.add
 /* ---------- gate + onboarding ---------- */
 $('#gate-lang').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.v)));
 $('#p-lang').addEventListener('click',e=>{if(e.target.dataset.v)setLang(e.target.dataset.v);});
+let lastEmail='';
+async function requestMagic(email){
+  const btn=$('#gate-enter');btn.disabled=true;const old=btn.textContent;btn.textContent=t('sending');
+  try{
+    await sb.sendMagic(email);lastEmail=email;
+    $('#gate-sent-email').textContent=email;
+    $('#gate-form').style.display='none';$('#gate-sent').style.display='';
+  }catch(e){toast(t('magic_err'));}
+  finally{btn.disabled=false;btn.textContent=old;}
+}
 $('#gate-enter').addEventListener('click',()=>{
   const email=$('#in-email').value.trim().toLowerCase();
   if(!validEmail(email)){toast(t('invalid_email'));return;}
-  CUR=email;localStorage.setItem('impulse.current',email);
-  U=loadUser(email);
-  $('#gate').classList.remove('on');
-  if(!U){U=freshUser(email);saveUser();startOnb();}
-  else{enterApp(U.onboarded);}
+  requestMagic(email);
 });
+$('#gate-resend').addEventListener('click',()=>{if(lastEmail)requestMagic(lastEmail);});
 $('#in-email').addEventListener('keydown',e=>{if(e.key==='Enter')$('#gate-enter').click();});
 let onb={step:0,name:'',goal:'Hipertrofia',days:'4'};
 function segPick(wrap,cb){wrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
@@ -742,7 +815,9 @@ $$('#onb [data-next]').forEach(b=>b.addEventListener('click',()=>{
 }));
 $('#onb [data-done]').addEventListener('click',()=>{
   U.profile={name:onb.name||(LANG==='es'?'Atleta':'Athlete'),goal:onb.goal,days:+onb.days};
-  U.onboarded=true;saveUser();$('#onb').classList.remove('on');enterApp(true);
+  U.onboarded=true;saveUser();
+  if(sb.ready())sb.upsertProfile({name:U.profile.name,goal:U.profile.goal,days:U.profile.days,lang:LANG}).catch(()=>{});
+  $('#onb').classList.remove('on');enterApp(true);
 });
 function enterApp(ok){
   $('#nav').classList.remove('hidden');
@@ -921,6 +996,7 @@ function finishSession(){
       sets:ex.sets.filter(s=>+s.w>0&&+s.r>0)};}).filter(ex=>ex.sets.length)};
   if(!clean.exercises.length){toast(t('logset'));return;}
   const before=volumes();U.sessions.push(clean);saveUser();const after=volumes();
+  if(sb.ready()&&sb.sess.uid)sb.insertSession({user_id:sb.sess.uid,date:clean.date,duration_sec:clean.durationSec,exercises:clean.exercises}).catch(()=>{});
   const ups=[];for(const m in MUS){if(tierIdx(tierOf(after[m]))>tierIdx(tierOf(before[m])))ups.push({m,t:tierOf(after[m])});}
   endSession();
   if(ups.length)showCelebration(ups);else toast(t('saved')+' 💪');
@@ -1052,19 +1128,17 @@ $('#pw-close').addEventListener('click',()=>$('#paywall').classList.remove('on')
 let pendingPlan=null;
 $$('#paywall [data-plan]').forEach(b=>b.addEventListener('click',()=>{
   pendingPlan=b.dataset.plan;$('#paywall').classList.remove('on');
-  $('#plan-title').textContent=(t('activate'))+' · '+(pendingPlan==='normal'?'Normal $500':'Premium $1000');
-  $('#plan-email').value=CUR||'';$('#sheet-plan').classList.add('on');
+  $('#plan-title').textContent=(pendingPlan==='normal'?'Normal · $500 MXN':'Premium · $1000 MXN');
+  $('#sheet-plan').classList.add('on');
 }));
 $('#plan-activate').addEventListener('click',()=>{
-  const email=$('#plan-email').value.trim().toLowerCase();
-  if(!validEmail(email)){toast(t('invalid_email'));return;}
-  if(email!==CUR){toast(t('email_mismatch'));return;}
-  U.plan=pendingPlan;saveUser();closeSheets();
-  toast((pendingPlan==='normal'?'Normal':'Premium')+' '+t('plan_activated')+' ✓');renderPerfil();
+  // El plan NUNCA se otorga desde el cliente (evita activar Premium gratis editando localStorage).
+  // El pago seguro (Stripe) y la activación por webhook del servidor entran en la siguiente fase.
+  closeSheets();toast(t('pay_soon'));
 });
 $('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(U,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='impulse-'+CUR+'.json';a.click();});
-$('#logout').addEventListener('click',()=>{localStorage.removeItem('impulse.current');location.reload();});
-$('#reset').addEventListener('click',()=>{if(confirm(t('resetq'))){localStorage.removeItem(userKey(CUR));localStorage.removeItem('impulse.current');location.reload();}});
+$('#logout').addEventListener('click',()=>{sb.signOut();localStorage.removeItem('impulse.current');location.reload();});
+$('#reset').addEventListener('click',()=>{if(confirm(t('resetq'))){if(CUR)localStorage.removeItem(userKey(CUR));sb.signOut();localStorage.removeItem('impulse.current');location.reload();}});
 
 /* ---------- sheets ---------- */
 function closeSheets(){$$('.sheet').forEach(s=>s.classList.remove('on'));}
@@ -1076,12 +1150,31 @@ clock();setInterval(clock,10000);
 
 /* ---------- boot ---------- */
 function renderAll(){renderInicio();renderPerfil();if(currentView==='fisico')paintModel();if(currentView==='biblioteca')renderLib();}
-function boot(){
+async function hydrateFromCloud(){
+  const [prof,rows,sub]=await Promise.all([sb.getProfile(),sb.getSessions(),sb.getSub()]);
+  const sessions=(rows||[]).map(r=>({date:r.date,ts:r.created_at?Date.parse(r.created_at):Date.now(),durationSec:r.duration_sec||0,exercises:r.exercises||[]}));
+  CUR=sb.sess.email;
+  U={email:sb.sess.email,uid:sb.sess.uid,
+     profile:(prof&&prof.name)?{name:prof.name,goal:prof.goal||'Hipertrofia',days:prof.days||4}:null,
+     onboarded:!!(prof&&prof.name),
+     plan:(sub&&sub.plan)?sub.plan:'free',
+     sessions};
+  if(prof&&prof.lang&&prof.lang!==LANG)setLang(prof.lang);
+  saveUser();
+}
+async function boot(){
   applyI18n();
-  const cur=localStorage.getItem('impulse.current');
-  if(cur&&loadUser(cur)){CUR=cur;U=loadUser(cur);
-    if(U.onboarded){enterApp(true);}else{startOnb();}
-  }else{$('#gate').classList.add('on');}
+  let authed=false;
+  try{authed=await sb.handleCallback();}catch(e){}
+  if(!authed&&sb.ready()){
+    try{const ok=await sb.ensureFresh();if(ok){if(!sb.sess.uid)await sb.fetchUser();authed=sb.ready();}}catch(e){}
+  }
+  if(authed&&sb.ready()){
+    try{await hydrateFromCloud();}
+    catch(e){const c=sb.sess.email&&loadUser(sb.sess.email);if(c){U=c;CUR=sb.sess.email;}}
+    if(U){if(U.onboarded){enterApp(true);}else{startOnb();}return;}
+  }
+  $('#gate').classList.add('on');
 }
 boot();
 </script>
