@@ -350,6 +350,13 @@
         <button class="btn" id="open-paywall" data-i18n="seeplans">Ver planes</button>
       </div>
 
+      <div class="card" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><b data-i18n="role_mode">Modo</b><div class="sub" id="p-role" style="margin-top:2px">—</div></div>
+          <button class="btn ghost sm" id="p-role-toggle" style="margin:0;width:auto;padding:8px 14px">—</button>
+        </div>
+      </div>
+
       <h2 class="sec" data-i18n="summary">Resumen</h2>
       <div class="stat">
         <div class="c"><div class="k" data-i18n="sessions">Sesiones</div><div class="v num" id="p-sessions">0</div></div>
@@ -365,6 +372,33 @@
       <div class="empty" style="padding-top:20px" data-i18n="localnote">Impulse · tus datos se guardan por correo en este dispositivo</div>
     </section>
 
+    <!-- COACH / ENTRENADOR (solo visible si role=trainer) -->
+    <section class="view" data-view="coach">
+      <div class="eyebrow"><span data-i18n="nav_coach">Coach</span></div>
+      <h1 class="big" data-i18n="co_title">Panel de entrenador</h1>
+
+      <div class="stat" style="margin-top:14px">
+        <div class="c"><div class="k" data-i18n="co_clients">Clientes</div><div class="v num" id="co-clients">0</div></div>
+        <div class="c"><div class="k" data-i18n="co_active">Activos</div><div class="v num" id="co-active">0</div></div>
+        <div class="c"><div class="k" data-i18n="co_avg">Nivel prom.</div><div class="v num" id="co-avg">—</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn" id="co-add" style="flex:1" data-i18n="co_newclient">Nuevo cliente</button>
+        <button class="btn ghost" id="co-ai" style="flex:1" data-i18n="co_ai">Crear con IA</button>
+      </div>
+
+      <h2 class="sec" data-i18n="co_myclients">Mis clientes</h2>
+      <div id="co-client-list"></div>
+
+      <h2 class="sec" data-i18n="co_plans">Rutinas y dietas</h2>
+      <div id="co-plan-list"></div>
+
+      <h2 class="sec" data-i18n="co_recent">Actividad reciente</h2>
+      <div id="co-activity"></div>
+      <div style="height:24px"></div>
+    </section>
+
   </div><!-- /scroll -->
 
   <nav class="nav hidden" id="nav">
@@ -372,6 +406,7 @@
     <button data-go="entrenar"><span class="ic">▲</span><span data-i18n="nav_train">Entrenar</span></button>
     <button data-go="fisico"><span class="ic">⬢</span><span data-i18n="nav_body">Físico</span></button>
     <button data-go="biblioteca"><span class="ic">≣</span><span data-i18n="nav_lib">Biblioteca</span></button>
+    <button data-go="coach" id="nav-coach" style="display:none"><span class="ic">✦</span><span data-i18n="nav_coach">Coach</span></button>
     <button data-go="perfil"><span class="ic">●</span><span data-i18n="nav_profile">Perfil</span></button>
   </nav>
 
@@ -418,8 +453,17 @@
           <button data-v="3">3</button><button data-v="4" class="on">4</button>
           <button data-v="5">5</button><button data-v="6">6</button>
         </div>
-        <button class="btn" data-done data-i18n="onb_start">Empezar</button>
+        <button class="btn" data-next data-i18n="continue">Continuar</button>
         <div class="empty" data-i18n="onb_note">Tu modelo empieza en blanco. Se ilumina y sube de rango solo con lo que registres.</div>
+      </div>
+      <div class="ostep" data-step="2">
+        <h1 class="big" data-i18n="onb_role_t">¿Cómo usarás Impulse?</h1>
+        <div class="seg" id="in-role" style="margin-top:12px;flex-direction:column">
+          <button data-v="athlete" class="on" data-i18n="role_athlete">Soy atleta</button>
+          <button data-v="trainer" data-i18n="role_trainer">Soy entrenador</button>
+        </div>
+        <button class="btn" data-done data-i18n="onb_start">Empezar</button>
+        <div class="empty" data-i18n="onb_role_note">Puedes cambiarlo después en tu perfil.</div>
       </div>
     </div>
   </div>
@@ -543,6 +587,46 @@
     </div>
   </div>
 
+  <!-- NUEVO CLIENTE -->
+  <div class="sheet" id="sheet-client">
+    <div class="scrim" data-close></div>
+    <div class="panel">
+      <div class="grip"></div>
+      <h3 data-i18n="co_newclient">Nuevo cliente</h3>
+      <div class="sub" data-i18n="co_client_sub">Agrega o invita a un cliente por correo. Se activa cuando entra con ese correo.</div>
+      <label class="fld"><input class="txt" id="cl-name" placeholder="Nombre" autocomplete="off" /></label>
+      <label class="fld"><input class="txt" id="cl-email" type="email" inputmode="email" placeholder="correo@cliente.com" /></label>
+      <button class="btn" id="cl-save" data-i18n="co_addclient">Agregar cliente</button>
+    </div>
+  </div>
+
+  <!-- ASIGNAR RUTINA/DIETA -->
+  <div class="sheet" id="sheet-assign">
+    <div class="scrim" data-close></div>
+    <div class="panel">
+      <div class="grip"></div>
+      <h3 id="as-title" data-i18n="co_assign">Asignar</h3>
+      <div class="sub" id="as-sub">—</div>
+      <div id="as-list" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- CHATBOT IA (rutinas/dietas) -->
+  <div class="sheet" id="sheet-ai">
+    <div class="scrim" data-close></div>
+    <div class="panel">
+      <div class="grip"></div>
+      <h3 data-i18n="co_ai_title">Crear con IA</h3>
+      <div class="seg" id="ai-kind" style="margin-top:8px">
+        <button data-v="routine" class="on" data-i18n="co_kind_routine">Rutina</button>
+        <button data-v="diet" data-i18n="co_kind_diet">Dieta</button>
+      </div>
+      <label class="fld"><textarea class="txt" id="ai-msg" rows="3" data-i18n-ph="co_ai_ph" placeholder="Ej: Rutina push/pull/legs 4 días para hipertrofia, nivel intermedio"></textarea></label>
+      <button class="btn" id="ai-gen" data-i18n="co_generate">Generar</button>
+      <div id="ai-result" style="margin-top:12px"></div>
+    </div>
+  </div>
+
   <div class="loader" id="loader"><div class="spin"></div><div class="sub" id="loader-txt" data-i18n="loading">Cargando ejercicios…</div></div>
   <div class="toast" id="toast"></div>
 </div>
@@ -606,6 +690,22 @@ const sb={
   async getSub(){if(!this.sess||!this.sess.uid)return null;const r=await fetch(SB_URL+'/rest/v1/subscriptions?select=*&user_id=eq.'+this.sess.uid,{headers:this.h(true)});if(!r.ok)return null;const a=await r.json();return a[0]||null;}
 };
 sb.load();
+Object.assign(sb,{
+  async coach(kind,message,context){
+    const r=await fetch(SB_URL+'/functions/v1/coach',{method:'POST',headers:this.h(true),body:JSON.stringify({kind,message,context:context||''})});
+    if(!r.ok){let d='';try{d=(await r.json()).error||''}catch(e){}throw new Error(d||('HTTP '+r.status));}
+    return await r.json();
+  },
+  async listClients(){const r=await fetch(SB_URL+'/rest/v1/trainer_clients?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  async addClient(o){const r=await fetch(SB_URL+'/rest/v1/trainer_clients',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({trainer_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
+  async listRoutines(){const r=await fetch(SB_URL+'/rest/v1/routines?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  async saveRoutine(o){const r=await fetch(SB_URL+'/rest/v1/routines',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({owner_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
+  async listDiets(){const r=await fetch(SB_URL+'/rest/v1/diets?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  async saveDiet(o){const r=await fetch(SB_URL+'/rest/v1/diets',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({owner_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
+  async assign(o){return fetch(SB_URL+'/rest/v1/assignments',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=minimal'}),body:JSON.stringify(Object.assign({trainer_id:this.sess.uid},o))});},
+  async allVisibleSessions(){const r=await fetch(SB_URL+'/rest/v1/sessions?select=user_id,exercises,date',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  async setRole(role){return fetch(SB_URL+'/rest/v1/profiles?id=eq.'+this.sess.uid,{method:'PATCH',headers:this.h(true),body:JSON.stringify({role})});}
+});
 // media host for exercise gifs/images (from the source dataset repo).
 // raw.githubusercontent is verified working; for high traffic switch to a CDN (jsDelivr) or self-host.
 const MEDIA='https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/';
@@ -631,6 +731,15 @@ const T={
   nav_lib:'Biblioteca',nav_profile:'Perfil',gate_title:'Entra con tu correo',gate_sub:'Recibe un enlace seguro en tu correo. Tus métricas se guardan y sincronizan en la nube.',
   enter:'Enviar enlace',gate_note:'Te enviamos un enlace seguro a tu correo. Sin contraseñas. Tus datos se guardan y se sincronizan en la nube.',
   sending:'Enviando…',magic_sent:'Revisa tu correo',magic_sent_sub:'Te enviamos un enlace mágico a',magic_spam:'Ábrelo desde este mismo dispositivo para entrar. Si no lo ves, revisa spam.',resend:'Reenviar enlace',magic_err:'No se pudo enviar el enlace. Revisa el correo e intenta de nuevo.',pay_soon:'Pago seguro con Stripe — próximamente. Tu plan se activará al confirmar el pago.',
+  nav_coach:'Coach',onb_role_t:'¿Cómo usarás Impulse?',role_athlete:'Soy atleta',role_trainer:'Soy entrenador',onb_role_note:'Puedes cambiarlo después en tu perfil.',
+  role_mode:'Modo',role_to_trainer:'Ser entrenador',role_to_athlete:'Volver a atleta',role_now_trainer:'Modo entrenador activado',role_now_athlete:'Modo atleta activado',
+  co_title:'Panel de entrenador',co_clients:'Clientes',co_active:'Activos',co_avg:'Nivel prom.',co_newclient:'Nuevo cliente',co_ai:'Crear con IA',co_myclients:'Mis clientes',co_plans:'Rutinas y dietas',co_recent:'Actividad reciente',
+  co_client_sub:'Agrega o invita a un cliente por correo. Se activa cuando entra con ese correo.',co_addclient:'Agregar cliente',co_client_added:'Cliente agregado',
+  co_assign:'Asignar',co_assign_pending:'invitación pendiente',co_assign_needactive:'El cliente debe entrar con su correo antes de asignarle.',co_assigned:'Asignado ✓',
+  co_ai_title:'Crear con IA',co_kind_routine:'Rutina',co_kind_diet:'Dieta',co_ai_ph:'Ej: Rutina push/pull/legs 4 días para hipertrofia, nivel intermedio',co_generate:'Generar',co_generating:'Generando…',co_ai_empty:'Escribe qué quieres generar',co_ai_err:'No se pudo generar. Revisa que la función esté desplegada e intenta de nuevo.',co_ai_nojson:'La IA respondió en texto; puedes reintentar para obtener el formato guardable.',
+  co_save:'Guardar',co_saved:'Guardado ✓',co_err:'Ocurrió un error, intenta de nuevo',
+  co_noclients:'Aún no tienes clientes. Agrega el primero.',co_noplans:'Aún no hay rutinas ni dietas. Crea una con IA.',co_noactivity:'Sin actividad reciente de clientes.',
+  co_st_active:'activo',co_st_invited:'invitado',co_st_inactive:'inactivo',co_items_ex:'ejercicios',co_items_meal:'comidas',
   onb_name_t:'¿Cómo te llamas?',continue:'Continuar',onb_goal_t:'Tu objetivo',goal_hyp:'Ganar músculo (hipertrofia)',goal_str:'Fuerza',
   goal_reco:'Recomposición',onb_days:'Días por semana',onb_start:'Empezar',onb_note:'Tu modelo empieza en blanco. Se ilumina y sube de rango solo con lo que registres.',
   volume:'Volumen',rank:'Rango',trainthis:'Entrenar este músculo',addexercise:'Añadir ejercicio',howto:'Cómo se hace',addtosession:'Añadir a la sesión',
@@ -660,6 +769,15 @@ const T={
   nav_lib:'Library',nav_profile:'Profile',gate_title:'Sign in with your email',gate_sub:'Get a secure link in your inbox. Your metrics are saved and synced to the cloud.',
   enter:'Send link',gate_note:'We email you a secure link. No passwords. Your data is saved and synced to the cloud.',
   sending:'Sending…',magic_sent:'Check your email',magic_sent_sub:'We sent a magic link to',magic_spam:'Open it on this same device to sign in. If you don’t see it, check spam.',resend:'Resend link',magic_err:'Could not send the link. Check the email and try again.',pay_soon:'Secure payment with Stripe — coming soon. Your plan activates once payment is confirmed.',
+  nav_coach:'Coach',onb_role_t:'How will you use Impulse?',role_athlete:'I am an athlete',role_trainer:'I am a trainer',onb_role_note:'You can change it later in your profile.',
+  role_mode:'Mode',role_to_trainer:'Become trainer',role_to_athlete:'Back to athlete',role_now_trainer:'Trainer mode on',role_now_athlete:'Athlete mode on',
+  co_title:'Trainer dashboard',co_clients:'Clients',co_active:'Active',co_avg:'Avg level',co_newclient:'New client',co_ai:'Create with AI',co_myclients:'My clients',co_plans:'Routines & diets',co_recent:'Recent activity',
+  co_client_sub:'Add or invite a client by email. Activated when they sign in with that email.',co_addclient:'Add client',co_client_added:'Client added',
+  co_assign:'Assign',co_assign_pending:'invite pending',co_assign_needactive:'The client must sign in with their email before assigning.',co_assigned:'Assigned ✓',
+  co_ai_title:'Create with AI',co_kind_routine:'Routine',co_kind_diet:'Diet',co_ai_ph:'e.g. Push/pull/legs routine 4 days for hypertrophy, intermediate',co_generate:'Generate',co_generating:'Generating…',co_ai_empty:'Type what you want to generate',co_ai_err:'Could not generate. Check the function is deployed and try again.',co_ai_nojson:'The AI replied in text; retry to get the saveable format.',
+  co_save:'Save',co_saved:'Saved ✓',co_err:'Something went wrong, try again',
+  co_noclients:'No clients yet. Add your first one.',co_noplans:'No routines or diets yet. Create one with AI.',co_noactivity:'No recent client activity.',
+  co_st_active:'active',co_st_invited:'invited',co_st_inactive:'inactive',co_items_ex:'exercises',co_items_meal:'meals',
   onb_name_t:'What is your name?',continue:'Continue',onb_goal_t:'Your goal',goal_hyp:'Build muscle (hypertrophy)',goal_str:'Strength',
   goal_reco:'Recomposition',onb_days:'Days per week',onb_start:'Start',onb_note:'Your model starts blank. It lights up and ranks up only with what you log.',
   volume:'Volume',rank:'Rank',trainthis:'Train this muscle',addexercise:'Add exercise',howto:'How to',addtosession:'Add to session',
@@ -725,7 +843,7 @@ let CUR=null, U=null;
 function userKey(email){return 'impulse.user.'+email.toLowerCase();}
 function loadUser(email){try{return JSON.parse(localStorage.getItem(userKey(email)))||null}catch(e){return null}}
 function saveUser(){if(CUR&&U)localStorage.setItem(userKey(CUR),JSON.stringify(U))}
-function freshUser(email){return {email,profile:null,onboarded:false,plan:'free',sessions:[],createdAt:Date.now()}}
+function freshUser(email){return {email,profile:null,onboarded:false,plan:'free',role:'athlete',sessions:[],createdAt:Date.now()}}
 const validEmail=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 /* ---------- computations ---------- */
@@ -749,6 +867,8 @@ function progressToNext(vol){
 function nextThreshold(vol){for(const x of TIERS){if(vol<x.min)return x.min;}return null;}
 function totalVolume(){const v=volumes();return Object.values(v).reduce((a,b)=>a+b,0);}
 function level(){return 1+Math.floor(Math.sqrt(totalVolume()/900));}
+function sessionsVolume(sessions){let tot=0;(sessions||[]).forEach(se=>(se.exercises||[]).forEach(ex=>(ex.sets||[]).forEach(s=>{tot+=(+s.w||0)*(+s.r||0);})));return tot;}
+function levelFromVol(tot){return 1+Math.floor(Math.sqrt((tot||0)/900));}
 function laggards(v){
   const trained=Object.keys(MUS).filter(m=>v[m]>0);
   if(!trained.length)return [];
@@ -790,23 +910,30 @@ $('#gate-enter').addEventListener('click',()=>{
 });
 $('#gate-resend').addEventListener('click',()=>{if(lastEmail)requestMagic(lastEmail);});
 $('#in-email').addEventListener('keydown',e=>{if(e.key==='Enter')$('#gate-enter').click();});
-let onb={step:0,name:'',goal:'Hipertrofia',days:'4'};
+let onb={step:0,name:'',goal:'Hipertrofia',days:'4',role:'athlete'};
 function segPick(wrap,cb){wrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   wrap.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(b.dataset.v);}));}
-segPick($('#in-goal'),v=>onb.goal=v);segPick($('#in-days'),v=>onb.days=v);
-function startOnb(){onb={step:0,name:'',goal:'Hipertrofia',days:'4'};$$('#onb .ostep').forEach(s=>s.classList.toggle('on',+s.dataset.step===0));$('#onb').classList.add('on');}
+segPick($('#in-goal'),v=>onb.goal=v);segPick($('#in-days'),v=>onb.days=v);segPick($('#in-role'),v=>onb.role=v);
+function showStep(n){onb.step=n;$$('#onb .ostep').forEach(s=>s.classList.toggle('on',+s.dataset.step===n));}
+function startOnb(){onb={step:0,name:'',goal:'Hipertrofia',days:'4',role:'athlete'};showStep(0);$('#onb').classList.add('on');}
 $$('#onb [data-next]').forEach(b=>b.addEventListener('click',()=>{
-  onb.name=$('#in-name').value.trim();
-  $$('#onb .ostep').forEach(s=>s.classList.toggle('on',+s.dataset.step===1));
+  if(onb.step===0)onb.name=$('#in-name').value.trim();
+  showStep(onb.step+1);
 }));
 $('#onb [data-done]').addEventListener('click',()=>{
   U.profile={name:onb.name||(LANG==='es'?'Atleta':'Athlete'),goal:onb.goal,days:+onb.days};
+  U.role=onb.role||'athlete';
   U.onboarded=true;saveUser();
-  if(sb.ready())sb.upsertProfile({name:U.profile.name,goal:U.profile.goal,days:U.profile.days,lang:LANG}).catch(()=>{});
+  if(sb.ready())sb.upsertProfile({name:U.profile.name,goal:U.profile.goal,days:U.profile.days,lang:LANG,role:U.role}).catch(()=>{});
   $('#onb').classList.remove('on');enterApp(true);
 });
+function applyRoleUI(){
+  const isTrainer=U&&U.role==='trainer';
+  $('#nav-coach').style.display=isTrainer?'':'none';
+}
 function enterApp(ok){
   $('#nav').classList.remove('hidden');
+  applyRoleUI();
   go('inicio');renderAll();
   if(!EXS.length)ensureExercises();
 }
@@ -836,6 +963,7 @@ function go(v){
   if(v==='fisico')paintModel();
   if(v==='entrenar')renderEntrenar();
   if(v==='biblioteca')renderLib();
+  if(v==='coach')renderCoach();
 }
 $$('.nav button').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 
@@ -1107,8 +1235,19 @@ function renderPerfil(){
   $('#pro-title').textContent=plan==='free'?'Impulse Pro':('Impulse '+(plan==='normal'?'Normal':'Premium'));
   $('#pro-sub').textContent=plan==='free'?t('prof_free'):(t('plan_activated')+' · '+t('prof_active'));
   $('#open-paywall').style.display=plan==='premium'?'none':'';
+  const isTrainer=(U.role==='trainer');
+  $('#p-role').textContent=isTrainer?t('role_trainer'):t('role_athlete');
+  $('#p-role-toggle').textContent=isTrainer?t('role_to_athlete'):t('role_to_trainer');
   $$('#p-lang button').forEach(b=>b.classList.toggle('on',b.dataset.v===LANG));
 }
+$('#p-role-toggle').addEventListener('click',()=>{
+  if(!U)return;
+  U.role=(U.role==='trainer')?'athlete':'trainer';saveUser();
+  if(sb.ready())sb.setRole(U.role).catch(()=>{});
+  applyRoleUI();renderPerfil();
+  toast(U.role==='trainer'?t('role_now_trainer'):t('role_now_athlete'));
+  if(U.role!=='trainer'&&currentView==='coach')go('inicio');
+});
 $('#open-paywall').addEventListener('click',()=>$('#paywall').classList.add('on'));
 $('#pw-close').addEventListener('click',()=>$('#paywall').classList.remove('on'));
 let pendingPlan=null;
@@ -1125,6 +1264,133 @@ $('#plan-activate').addEventListener('click',()=>{
 $('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(U,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='impulse-'+CUR+'.json';a.click();});
 $('#logout').addEventListener('click',()=>{sb.signOut();localStorage.removeItem('impulse.current');location.reload();});
 $('#reset').addEventListener('click',()=>{if(confirm(t('resetq'))){if(CUR)localStorage.removeItem(userKey(CUR));sb.signOut();localStorage.removeItem('impulse.current');location.reload();}});
+
+/* ---------- coach / entrenador ---------- */
+let coCache={clients:[],routines:[],diets:[]};
+async function renderCoach(){
+  if(!U||U.role!=='trainer')return;
+  const [clients,rts,dts,sess]=await Promise.all([
+    sb.listClients().catch(()=>[]), sb.listRoutines().catch(()=>[]),
+    sb.listDiets().catch(()=>[]), sb.allVisibleSessions().catch(()=>[])
+  ]);
+  coCache={clients,routines:rts,diets:dts};
+  const active=clients.filter(c=>c.status==='active');
+  $('#co-clients').textContent=clients.length;
+  $('#co-active').textContent=active.length;
+  // Nivel promedio de clientes con datos (reutiliza el cálculo de volumen existente)
+  const byUser={};(sess||[]).forEach(s=>{if(s.user_id===U.uid)return;(byUser[s.user_id]=byUser[s.user_id]||[]).push(s);});
+  const lvls=Object.keys(byUser).map(uid=>levelFromVol(sessionsVolume(byUser[uid])));
+  $('#co-avg').textContent=lvls.length?Math.round(lvls.reduce((a,b)=>a+b,0)/lvls.length):'—';
+  // Clientes
+  const cl=$('#co-client-list');cl.innerHTML='';
+  if(!clients.length)cl.innerHTML=`<div class="empty">${t('co_noclients')}</div>`;
+  clients.forEach(c=>{
+    const uid=c.client_id;const lvl=uid&&byUser[uid]?levelFromVol(sessionsVolume(byUser[uid])):null;
+    const st=c.status==='active'?t('co_st_active'):(c.status==='invited'?t('co_st_invited'):t('co_st_inactive'));
+    const row=document.createElement('div');row.className='row';
+    row.innerHTML=`<div class="meta"><div class="t">${esc(c.client_name||c.client_email||'—')}</div>
+      <div class="s">${esc(c.client_email||'')} · ${st}${lvl?(' · '+t('level')+' '+lvl):''}</div></div>
+      <span class="pill ${c.status==='active'?'A':'none'}">${lvl||'—'}</span>`;
+    const btn=document.createElement('button');btn.className='btn ghost sm';btn.style.cssText='margin:0;width:auto;padding:8px 12px';
+    btn.textContent=t('co_assign');btn.addEventListener('click',e=>{e.stopPropagation();openAssign(c);});
+    row.appendChild(btn);cl.appendChild(row);
+  });
+  // Rutinas y dietas
+  const pl=$('#co-plan-list');pl.innerHTML='';
+  const all=[...rts.map(x=>({...x,kind:'routine'})),...dts.map(x=>({...x,kind:'diet'}))];
+  if(!all.length)pl.innerHTML=`<div class="empty">${t('co_noplans')}</div>`;
+  all.forEach(x=>{
+    const n=(x.items||[]).length;
+    const row=document.createElement('div');row.className='row';
+    row.innerHTML=`<div class="meta"><div class="t">${esc(x.name||'—')}</div>
+      <div class="s">${x.kind==='routine'?t('co_kind_routine'):t('co_kind_diet')} · ${n} ${x.kind==='routine'?t('co_items_ex'):t('co_items_meal')}</div></div>`;
+    pl.appendChild(row);
+  });
+  // Actividad reciente (últimas sesiones de clientes)
+  const ac=$('#co-activity');ac.innerHTML='';
+  const nameByUid={};clients.forEach(c=>{if(c.client_id)nameByUid[c.client_id]=c.client_name||c.client_email;});
+  const recent=(sess||[]).filter(s=>s.user_id!==U.uid).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8);
+  if(!recent.length)ac.innerHTML=`<div class="empty">${t('co_noactivity')}</div>`;
+  recent.forEach(s=>{
+    const row=document.createElement('div');row.className='row';
+    const vol=sessionsVolume([s]);
+    row.innerHTML=`<div class="meta"><div class="t">${esc(nameByUid[s.user_id]||'Cliente')}</div>
+      <div class="s">${esc(s.date||'')} · ${(s.exercises||[]).length} ${t('co_items_ex')} · ${fmtVol(vol)}${volUnit(vol)}</div></div>`;
+    ac.appendChild(row);
+  });
+}
+// Nuevo cliente
+$('#co-add').addEventListener('click',()=>{$('#cl-name').value='';$('#cl-email').value='';$('#sheet-client').classList.add('on');});
+$('#cl-save').addEventListener('click',async()=>{
+  const name=$('#cl-name').value.trim();const email=$('#cl-email').value.trim().toLowerCase();
+  if(!validEmail(email)){toast(t('invalid_email'));return;}
+  const btn=$('#cl-save');btn.disabled=true;
+  try{await sb.addClient({client_email:email,client_name:name||null,status:'invited'});closeSheets();toast(t('co_client_added'));renderCoach();}
+  catch(e){toast(t('co_err'));}
+  finally{btn.disabled=false;}
+});
+// Asignar rutina/dieta a un cliente
+let assignClient=null;
+function openAssign(c){
+  assignClient=c;
+  $('#as-sub').textContent=(c.client_name||c.client_email||'')+(c.status!=='active'?(' · '+t('co_assign_pending')):'');
+  const list=$('#as-list');list.innerHTML='';
+  const all=[...coCache.routines.map(x=>({...x,kind:'routine'})),...coCache.diets.map(x=>({...x,kind:'diet'}))];
+  if(!all.length){list.innerHTML=`<div class="empty">${t('co_noplans')}</div>`;}
+  if(!c.client_id){const w=document.createElement('div');w.className='empty';w.textContent=t('co_assign_needactive');list.appendChild(w);}
+  all.forEach(x=>{
+    const row=document.createElement('div');row.className='row';
+    row.innerHTML=`<div class="meta"><div class="t">${esc(x.name||'—')}</div><div class="s">${x.kind==='routine'?t('co_kind_routine'):t('co_kind_diet')}</div></div>`;
+    const btn=document.createElement('button');btn.className='btn sm';btn.style.cssText='margin:0;width:auto;padding:8px 12px';
+    btn.textContent=t('co_assign');btn.disabled=!c.client_id;
+    btn.addEventListener('click',async()=>{
+      try{await sb.assign({client_id:c.client_id,kind:x.kind,ref_id:x.id});closeSheets();toast(t('co_assigned'));}
+      catch(e){toast(t('co_err'));}
+    });
+    row.appendChild(btn);list.appendChild(row);
+  });
+  $('#sheet-assign').classList.add('on');
+}
+// Chatbot IA
+let aiKind='routine', aiLast=null;
+segPick($('#ai-kind'),v=>{aiKind=v;});
+$('#co-ai').addEventListener('click',()=>{$('#ai-result').innerHTML='';$('#ai-msg').value='';$('#sheet-ai').classList.add('on');});
+$('#ai-gen').addEventListener('click',async()=>{
+  const msg=$('#ai-msg').value.trim();
+  if(!msg){toast(t('co_ai_empty'));return;}
+  const btn=$('#ai-gen');btn.disabled=true;const old=btn.textContent;btn.textContent=t('co_generating');
+  $('#ai-result').innerHTML=`<div class="empty">${t('co_generating')}</div>`;
+  try{
+    const ctx=U.profile?`Objetivo del atleta: ${U.profile.goal}, ${U.profile.days} días/sem.`:'';
+    const res=await sb.coach(aiKind,msg,ctx);
+    aiLast={kind:res.kind,parsed:res.parsed,content:res.content};
+    renderAiResult();
+  }catch(e){$('#ai-result').innerHTML=`<div class="empty">${t('co_ai_err')}</div>`;}
+  finally{btn.disabled=false;btn.textContent=old;}
+});
+function renderAiResult(){
+  const box=$('#ai-result');box.innerHTML='';
+  if(!aiLast){return;}
+  const p=aiLast.parsed;
+  if(!p||!p.items){box.innerHTML=`<div class="empty">${t('co_ai_nojson')}</div><pre style="white-space:pre-wrap;font-size:.8rem;opacity:.8">${esc(aiLast.content||'')}</pre>`;return;}
+  const h=document.createElement('div');h.className='card';
+  let inner=`<b>${esc(p.name||'—')}</b><div class="sub" style="margin-top:8px">`;
+  (p.items||[]).slice(0,20).forEach(it=>{
+    if(aiLast.kind==='routine')inner+=`• ${esc(it.exercise||'')} — ${esc(String(it.sets||''))}×${esc(String(it.reps||''))}<br>`;
+    else inner+=`• ${esc(it.meal||'')} (${esc(String(it.kcal||''))} kcal)<br>`;
+  });
+  inner+='</div>';h.innerHTML=inner;box.appendChild(h);
+  const save=document.createElement('button');save.className='btn';save.textContent=t('co_save');
+  save.addEventListener('click',async()=>{
+    save.disabled=true;
+    try{
+      if(aiLast.kind==='routine')await sb.saveRoutine({name:p.name||'Rutina',items:p.items||[]});
+      else await sb.saveDiet({name:p.name||'Dieta',items:p.items||[]});
+      closeSheets();toast(t('co_saved'));renderCoach();
+    }catch(e){toast(t('co_err'));save.disabled=false;}
+  });
+  box.appendChild(save);
+}
 
 /* ---------- sheets ---------- */
 function closeSheets(){$$('.sheet').forEach(s=>s.classList.remove('on'));}
@@ -1144,6 +1410,7 @@ async function hydrateFromCloud(){
      profile:(prof&&prof.name)?{name:prof.name,goal:prof.goal||'Hipertrofia',days:prof.days||4}:null,
      onboarded:!!(prof&&prof.name),
      plan:(sub&&sub.plan)?sub.plan:'free',
+     role:(prof&&prof.role)?prof.role:'athlete',
      sessions};
   if(prof&&prof.lang&&prof.lang!==LANG)setLang(prof.lang);
   saveUser();
