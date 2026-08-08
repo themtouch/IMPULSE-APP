@@ -415,19 +415,14 @@
     <div class="langpick" id="gate-lang"><button data-v="es">ES</button><button data-v="en">EN</button></div>
     <div class="body">
       <div class="brandmark"><span class="mark">I</span> Impulse</div>
-      <h1 class="big" style="text-align:center" data-i18n="gate_title">Entra con tu correo</h1>
-      <p class="sub" style="text-align:center;margin-top:8px" data-i18n="gate_sub">Tus métricas se guardan y se trackean por correo. Usa Gmail o cualquier correo.</p>
+      <h1 class="big" id="gate-title" style="text-align:center" data-i18n="gate_title">Entra con tu correo</h1>
+      <p class="sub" style="text-align:center;margin-top:8px" data-i18n="gate_sub">Entra con tu correo y contraseña. Tus datos se guardan y se sincronizan en la nube.</p>
       <div id="gate-form">
         <label class="fld"><input class="txt" id="in-email" type="email" inputmode="email" autocomplete="email" placeholder="tucorreo@gmail.com" /></label>
+        <label class="fld"><input class="txt" id="in-pass" type="password" autocomplete="current-password" data-i18n-ph="pass_ph" placeholder="Contraseña" /></label>
         <button class="btn" id="gate-enter" data-i18n="enter">Entrar</button>
-        <div class="empty" data-i18n="gate_note">Te enviamos un enlace seguro a tu correo. Sin contraseñas. Tus datos se guardan y se sincronizan en la nube.</div>
-      </div>
-      <div id="gate-sent" style="display:none;text-align:center">
-        <div style="font-size:2.6rem;margin:6px 0">✉️</div>
-        <h1 class="big" data-i18n="magic_sent">Revisa tu correo</h1>
-        <p class="sub" style="margin-top:8px"><span data-i18n="magic_sent_sub">Te enviamos un enlace mágico a</span><br><b id="gate-sent-email"></b></p>
-        <p class="sub" data-i18n="magic_spam" style="margin-top:10px;opacity:.7">Ábrelo desde este mismo dispositivo para entrar. Si no lo ves, revisa spam.</p>
-        <button class="btn" id="gate-resend" data-i18n="resend">Reenviar enlace</button>
+        <button class="btn ghost sm" id="gate-toggle" style="margin-top:10px" data-i18n="to_signup">¿Primera vez? Crear cuenta</button>
+        <div class="empty" data-i18n="gate_note">Mínimo 6 caracteres. Tus datos se guardan y se sincronizan en la nube por tu cuenta.</div>
       </div>
     </div>
   </div>
@@ -691,6 +686,20 @@ const sb={
 };
 sb.load();
 Object.assign(sb,{
+  async signUp(email,password){
+    const r=await fetch(SB_URL+'/auth/v1/signup',{method:'POST',headers:this.h(false),body:JSON.stringify({email,password})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.msg||d.error_description||d.error||('HTTP '+r.status));
+    if(d.access_token){this.store({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+((d.expires_in||3600)*1000),uid:d.user&&d.user.id,email:((d.user&&d.user.email)||email).toLowerCase()});return {session:true};}
+    return {session:false};
+  },
+  async signIn(email,password){
+    const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:this.h(false),body:JSON.stringify({email,password})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.msg||d.error_description||d.error||('HTTP '+r.status));
+    this.store({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+((d.expires_in||3600)*1000),uid:d.user&&d.user.id,email:((d.user&&d.user.email)||email).toLowerCase()});
+    return {session:true};
+  },
   async coach(kind,message,context){
     const r=await fetch(SB_URL+'/functions/v1/coach',{method:'POST',headers:this.h(true),body:JSON.stringify({kind,message,context:context||''})});
     if(!r.ok){let d='';try{d=(await r.json()).error||''}catch(e){}throw new Error(d||('HTTP '+r.status));}
@@ -728,8 +737,9 @@ const T={
   exercises:'Ejercicios',search_ph:'Buscar ejercicio o músculo…',profile:'Perfil',seeplans:'Ver planes',summary:'Resumen',level:'Nivel',
   lang:'Idioma',export:'Exportar mis datos (JSON)',logout:'Cerrar sesión',reset:'Borrar mis datos',
   localnote:'Impulse · tus datos se guardan por correo en este dispositivo',nav_home:'Inicio',nav_train:'Entrenar',nav_body:'Físico',
-  nav_lib:'Biblioteca',nav_profile:'Perfil',gate_title:'Entra con tu correo',gate_sub:'Recibe un enlace seguro en tu correo. Tus métricas se guardan y sincronizan en la nube.',
-  enter:'Enviar enlace',gate_note:'Te enviamos un enlace seguro a tu correo. Sin contraseñas. Tus datos se guardan y se sincronizan en la nube.',
+  nav_lib:'Biblioteca',nav_profile:'Perfil',gate_title:'Inicia sesión',gate_sub:'Entra con tu correo y contraseña. Tus datos se guardan y se sincronizan en la nube.',
+  enter:'Entrar',gate_note:'Mínimo 6 caracteres. Tus datos se sincronizan en la nube por tu cuenta.',
+  signup_btn:'Crear cuenta',signup_title:'Crea tu cuenta',to_signup:'¿Primera vez? Crear cuenta',to_login:'¿Ya tienes cuenta? Inicia sesión',pass_ph:'Contraseña',pass_short:'La contraseña debe tener al menos 6 caracteres',confirm_needed:'Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.',bad_creds:'Correo o contraseña incorrectos',already_reg:'Ese correo ya tiene cuenta. Inicia sesión.',auth_err:'No se pudo completar. Intenta de nuevo.',
   sending:'Enviando…',magic_sent:'Revisa tu correo',magic_sent_sub:'Te enviamos un enlace mágico a',magic_spam:'Ábrelo desde este mismo dispositivo para entrar. Si no lo ves, revisa spam.',resend:'Reenviar enlace',magic_err:'No se pudo enviar el enlace. Revisa el correo e intenta de nuevo.',pay_soon:'Pago seguro con Stripe — próximamente. Tu plan se activará al confirmar el pago.',
   nav_coach:'Coach',onb_role_t:'¿Cómo usarás Impulse?',role_athlete:'Soy atleta',role_trainer:'Soy entrenador',onb_role_note:'Puedes cambiarlo después en tu perfil.',
   role_mode:'Modo',role_to_trainer:'Ser entrenador',role_to_athlete:'Volver a atleta',role_now_trainer:'Modo entrenador activado',role_now_athlete:'Modo atleta activado',
@@ -766,8 +776,9 @@ const T={
   exercises:'Exercises',search_ph:'Search exercise or muscle…',profile:'Profile',seeplans:'See plans',summary:'Summary',level:'Level',
   lang:'Language',export:'Export my data (JSON)',logout:'Log out',reset:'Delete my data',
   localnote:'Impulse · your data is stored per email on this device',nav_home:'Home',nav_train:'Train',nav_body:'Physique',
-  nav_lib:'Library',nav_profile:'Profile',gate_title:'Sign in with your email',gate_sub:'Get a secure link in your inbox. Your metrics are saved and synced to the cloud.',
-  enter:'Send link',gate_note:'We email you a secure link. No passwords. Your data is saved and synced to the cloud.',
+  nav_lib:'Library',nav_profile:'Profile',gate_title:'Sign in',gate_sub:'Sign in with your email and password. Your data is saved and synced to the cloud.',
+  enter:'Sign in',gate_note:'At least 6 characters. Your data syncs to the cloud under your account.',
+  signup_btn:'Create account',signup_title:'Create your account',to_signup:'First time? Create account',to_login:'Already have an account? Sign in',pass_ph:'Password',pass_short:'Password must be at least 6 characters',confirm_needed:'Account created. Check your email to confirm, then sign in.',bad_creds:'Wrong email or password',already_reg:'That email already has an account. Sign in.',auth_err:'Could not complete. Try again.',
   sending:'Sending…',magic_sent:'Check your email',magic_sent_sub:'We sent a magic link to',magic_spam:'Open it on this same device to sign in. If you don’t see it, check spam.',resend:'Resend link',magic_err:'Could not send the link. Check the email and try again.',pay_soon:'Secure payment with Stripe — coming soon. Your plan activates once payment is confirmed.',
   nav_coach:'Coach',onb_role_t:'How will you use Impulse?',role_athlete:'I am an athlete',role_trainer:'I am a trainer',onb_role_note:'You can change it later in your profile.',
   role_mode:'Mode',role_to_trainer:'Become trainer',role_to_athlete:'Back to athlete',role_now_trainer:'Trainer mode on',role_now_athlete:'Athlete mode on',
@@ -893,23 +904,48 @@ let toT;function toast(m){const el=$('#toast');el.textContent=m;el.classList.add
 /* ---------- gate + onboarding ---------- */
 $('#gate-lang').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.v)));
 $('#p-lang').addEventListener('click',e=>{if(e.target.dataset.v)setLang(e.target.dataset.v);});
-let lastEmail='';
-async function requestMagic(email){
+let authMode='login';
+function setAuthMode(m){
+  authMode=m;
+  $('#gate-enter').textContent=(m==='login')?t('enter'):t('signup_btn');
+  $('#gate-toggle').textContent=(m==='login')?t('to_signup'):t('to_login');
+  $('#gate-title').textContent=(m==='login')?t('gate_title'):t('signup_title');
+  $('#in-pass').setAttribute('autocomplete',(m==='login')?'current-password':'new-password');
+}
+function mapAuthErr(msg){
+  msg=(msg||'').toLowerCase();
+  if(msg.includes('invalid login')||msg.includes('invalid credentials'))return t('bad_creds');
+  if(msg.includes('already registered')||msg.includes('already been registered')||msg.includes('user already'))return t('already_reg');
+  if(msg.includes('password'))return t('pass_short');
+  return t('auth_err');
+}
+async function enterAfterAuth(){
+  try{await hydrateFromCloud();}
+  catch(e){const c=sb.sess&&sb.sess.email&&loadUser(sb.sess.email);if(c){U=c;CUR=sb.sess.email;}}
+  $('#gate').classList.remove('on');
+  if(U){if(U.onboarded){enterApp(true);}else{startOnb();}}
+}
+async function doAuth(){
+  const email=$('#in-email').value.trim().toLowerCase();
+  const pass=$('#in-pass').value;
+  if(!validEmail(email)){toast(t('invalid_email'));return;}
+  if(!pass||pass.length<6){toast(t('pass_short'));return;}
   const btn=$('#gate-enter');btn.disabled=true;const old=btn.textContent;btn.textContent=t('sending');
   try{
-    await sb.sendMagic(email);lastEmail=email;
-    $('#gate-sent-email').textContent=email;
-    $('#gate-form').style.display='none';$('#gate-sent').style.display='';
-  }catch(e){toast(t('magic_err'));}
+    if(authMode==='signup'){
+      const res=await sb.signUp(email,pass);
+      if(!res.session){toast(t('confirm_needed'));return;}
+    }else{
+      await sb.signIn(email,pass);
+    }
+    await enterAfterAuth();
+  }catch(e){toast(mapAuthErr(e.message));}
   finally{btn.disabled=false;btn.textContent=old;}
 }
-$('#gate-enter').addEventListener('click',()=>{
-  const email=$('#in-email').value.trim().toLowerCase();
-  if(!validEmail(email)){toast(t('invalid_email'));return;}
-  requestMagic(email);
-});
-$('#gate-resend').addEventListener('click',()=>{if(lastEmail)requestMagic(lastEmail);});
-$('#in-email').addEventListener('keydown',e=>{if(e.key==='Enter')$('#gate-enter').click();});
+$('#gate-enter').addEventListener('click',doAuth);
+$('#gate-toggle').addEventListener('click',()=>setAuthMode(authMode==='login'?'signup':'login'));
+$('#in-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doAuth();});
+$('#in-email').addEventListener('keydown',e=>{if(e.key==='Enter')$('#in-pass').focus();});
 let onb={step:0,name:'',goal:'Hipertrofia',days:'4',role:'athlete'};
 function segPick(wrap,cb){wrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   wrap.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(b.dataset.v);}));}
