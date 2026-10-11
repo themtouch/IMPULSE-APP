@@ -239,6 +239,22 @@
   .chipbar button{flex:0 0 auto;font-size:12px;font-weight:700;color:var(--mut);background:var(--surface);
     border:1px solid var(--line);border-radius:999px;padding:8px 13px}
   .chipbar button.on{background:var(--fg);color:#111;border-color:transparent}
+  /* dialogos, pasos de onboarding, quitar ejercicio */
+  .dlg{position:absolute;inset:0;z-index:96;display:none;align-items:center;justify-content:center;padding:24px;
+    background:rgba(0,0,0,.62);backdrop-filter:blur(2px)}
+  .dlg.on{display:flex}
+  .dlg .box{width:100%;max-width:340px;background:var(--surface);border:1px solid var(--line2);border-radius:18px;
+    padding:20px;animation:pop .18s ease-out}
+  @keyframes pop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+  .dlg h3{font-size:1.08rem;font-weight:800;margin-bottom:6px}
+  .dlg .acts{display:flex;gap:8px;margin-top:16px}
+  .dlg .acts .btn{margin-top:0}
+  .dots{display:flex;gap:6px;justify-content:center;margin-bottom:14px}
+  .dots i{width:22px;height:4px;border-radius:99px;background:var(--line2);transition:background .2s}
+  .dots i.on{background:var(--accent)}
+  .onb-back{display:block;font-size:13px;color:var(--mut);font-weight:700;padding:12px 0 0;width:100%;text-align:center}
+  .rm{width:28px;height:28px;border-radius:99px;background:var(--elev);color:var(--mut);font-size:13px;flex:0 0 auto;display:grid;place-items:center}
+  .toast{white-space:normal;text-align:center;width:max-content}
 </style>
 
 <div class="app" id="app">
@@ -258,6 +274,9 @@
         <div class="c"><div class="k" data-i18n="sessions">Sesiones</div><div class="v num" id="s-total">0</div></div>
         <div class="c"><div class="k" data-i18n="totalvol">Volumen total</div><div class="v num" id="s-vol">0</div></div>
       </div>
+
+      <div id="invites"></div>
+      <div id="myplan"></div>
 
       <div class="card" style="margin-top:16px">
         <div style="display:flex;justify-content:space-between;align-items:center">
@@ -382,7 +401,7 @@
       <div class="seg" id="p-lang"><button data-v="es">Español</button><button data-v="en">English</button></div>
       <button class="btn ghost sm" id="export" style="margin-top:14px" data-i18n="export">Exportar mis datos (JSON)</button>
       <button class="btn ghost sm" id="logout" style="margin-top:10px" data-i18n="logout">Cerrar sesión</button>
-      <button class="btn danger sm" style="margin-top:10px" id="reset" data-i18n="reset">Borrar mis datos</button>
+      <button class="btn danger sm" style="margin-top:10px" id="reset" data-i18n="reset">Borrar datos de este teléfono</button>
       <div class="empty" style="padding-top:20px" data-i18n="localnote">Impulse · tus datos se guardan por correo en este dispositivo</div>
     </section>
 
@@ -445,6 +464,7 @@
   <div class="cover" id="onb">
     <div class="body">
       <div class="brandmark"><span class="mark">I</span> Impulse</div>
+      <div class="dots" id="onb-dots"><i class="on"></i><i></i><i></i></div>
       <div class="ostep on" data-step="0">
         <h1 class="big" data-i18n="onb_name_t">¿Cómo te llamas?</h1>
         <label class="fld"><input class="txt" id="in-name" placeholder="—" autocomplete="off" /></label>
@@ -463,6 +483,7 @@
           <button data-v="5">5</button><button data-v="6">6</button>
         </div>
         <button class="btn" data-next data-i18n="continue">Continuar</button>
+        <button class="onb-back" data-back data-i18n="back_btn">← Atrás</button>
         <div class="empty" data-i18n="onb_note">Tu modelo empieza en blanco. Se ilumina y sube de rango solo con lo que registres.</div>
       </div>
       <div class="ostep" data-step="2">
@@ -472,6 +493,7 @@
           <button data-v="trainer" data-i18n="role_trainer">Soy entrenador</button>
         </div>
         <button class="btn" data-done data-i18n="onb_start">Empezar</button>
+        <button class="onb-back" data-back data-i18n="back_btn">← Atrás</button>
         <div class="empty" data-i18n="onb_role_note">Puedes cambiarlo después en tu perfil.</div>
       </div>
     </div>
@@ -638,6 +660,19 @@
 
   <div class="loader" id="loader"><div class="spin"></div><div class="sub" id="loader-txt" data-i18n="loading">Cargando ejercicios…</div></div>
   <div class="toast" id="toast"></div>
+  <div class="dlg" id="dlg"><div class="box"><h3 id="dlg-t"></h3><div class="sub" id="dlg-b"></div>
+    <div class="acts"><button class="btn ghost" id="dlg-no"></button><button class="btn" id="dlg-ok"></button></div></div></div>
+
+  <!-- PLAN ASIGNADO POR EL COACH -->
+  <div class="sheet" id="sheet-pv">
+    <div class="scrim" data-close></div>
+    <div class="panel">
+      <div class="grip"></div>
+      <h3 id="pv-name">—</h3>
+      <div class="sub" id="pv-kind">—</div>
+      <div class="list" id="pv-list"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -690,16 +725,16 @@ const sb={
     if(this.sess.expires_at&&Date.now()>this.sess.expires_at-60000&&this.sess.refresh_token){
       const r=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:this.h(false),body:JSON.stringify({refresh_token:this.sess.refresh_token})});
       if(r.ok){const d=await r.json();this.store({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+(d.expires_in*1000),uid:this.sess.uid,email:this.sess.email});}
-      else{this.store(null);return false;}
+      else{if(r.status===400||r.status===401)this.store(null);return false;}
     }
     return true;
   },
   signOut(){if(this.ready()){fetch(SB_URL+'/auth/v1/logout',{method:'POST',headers:this.h(true)}).catch(()=>{});}this.store(null);},
-  async getSessions(){const r=await fetch(SB_URL+'/rest/v1/sessions?select=*&order=date.asc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
-  insertSession(row){return fetch(SB_URL+'/rest/v1/sessions',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=minimal'}),body:JSON.stringify(row)});},
-  async getProfile(){if(!this.sess||!this.sess.uid)return null;const r=await fetch(SB_URL+'/rest/v1/profiles?select=*&id=eq.'+this.sess.uid,{headers:this.h(true)});if(!r.ok)return null;const a=await r.json();return a[0]||null;},
-  upsertProfile(p){return fetch(SB_URL+'/rest/v1/profiles?on_conflict=id',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(Object.assign({id:this.sess.uid},p))});},
-  async getSub(){if(!this.sess||!this.sess.uid)return null;const r=await fetch(SB_URL+'/rest/v1/subscriptions?select=*&user_id=eq.'+this.sess.uid,{headers:this.h(true)});if(!r.ok)return null;const a=await r.json();return a[0]||null;}
+  async getSessions(){const r=await this.af(SB_URL+'/rest/v1/sessions?select=*&order=date.asc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  insertSession(row){return this.af(SB_URL+'/rest/v1/sessions',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=minimal'}),body:JSON.stringify(row)});},
+  async getProfile(){if(!this.sess||!this.sess.uid)return null;const r=await this.af(SB_URL+'/rest/v1/profiles?select=*&id=eq.'+this.sess.uid,{headers:this.h(true)});if(!r.ok)return null;const a=await r.json();return a[0]||null;},
+  upsertProfile(p){return this.af(SB_URL+'/rest/v1/profiles?on_conflict=id',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(Object.assign({id:this.sess.uid},p))});},
+  async getSub(){if(!this.sess||!this.sess.uid)return null;const r=await this.af(SB_URL+'/rest/v1/subscriptions?select=*&user_id=eq.'+this.sess.uid,{headers:this.h(true)});if(!r.ok)return null;const a=await r.json();return a[0]||null;}
 };
 sb.load();
 Object.assign(sb,{
@@ -720,20 +755,40 @@ Object.assign(sb,{
     return {session:true};
   },
   async coach(kind,message,context){
-    const r=await fetch(SB_URL+'/functions/v1/'+SB_COACH_FN,{method:'POST',headers:this.h(true),body:JSON.stringify({kind,message,context:context||''})});
+    const r=await this.af(SB_URL+'/functions/v1/'+SB_COACH_FN,{method:'POST',headers:this.h(true),body:JSON.stringify({kind,message,context:context||''})});
     if(!r.ok){let d='';try{d=(await r.json()).error||''}catch(e){}throw new Error(d||('HTTP '+r.status));}
     return await r.json();
   },
-  async listClients(){const r=await fetch(SB_URL+'/rest/v1/trainer_clients?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
-  async addClient(o){const r=await fetch(SB_URL+'/rest/v1/trainer_clients',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({trainer_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
-  async listRoutines(){const r=await fetch(SB_URL+'/rest/v1/routines?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
-  async saveRoutine(o){const r=await fetch(SB_URL+'/rest/v1/routines',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({owner_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
-  async listDiets(){const r=await fetch(SB_URL+'/rest/v1/diets?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
-  async saveDiet(o){const r=await fetch(SB_URL+'/rest/v1/diets',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({owner_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
-  async assign(o){return fetch(SB_URL+'/rest/v1/assignments',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=minimal'}),body:JSON.stringify(Object.assign({trainer_id:this.sess.uid},o))});},
-  async allVisibleSessions(){const r=await fetch(SB_URL+'/rest/v1/sessions?select=user_id,exercises,date',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
-  async setRole(role){return fetch(SB_URL+'/rest/v1/profiles?id=eq.'+this.sess.uid,{method:'PATCH',headers:this.h(true),body:JSON.stringify({role})});}
+  async listClients(){const r=await this.af(SB_URL+'/rest/v1/trainer_clients?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  async addClient(o){const r=await this.af(SB_URL+'/rest/v1/trainer_clients',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({trainer_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
+  async listRoutines(){const r=await this.af(SB_URL+'/rest/v1/routines?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  async saveRoutine(o){const r=await this.af(SB_URL+'/rest/v1/routines',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({owner_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
+  async listDiets(){const r=await this.af(SB_URL+'/rest/v1/diets?select=*&order=created_at.desc',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  async saveDiet(o){const r=await this.af(SB_URL+'/rest/v1/diets',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=representation'}),body:JSON.stringify(Object.assign({owner_id:this.sess.uid},o))});if(!r.ok)throw new Error('HTTP '+r.status);const a=await r.json();return a[0]||null;},
+  async assign(o){return this.af(SB_URL+'/rest/v1/assignments',{method:'POST',headers:Object.assign(this.h(true),{'Prefer':'return=minimal'}),body:JSON.stringify(Object.assign({trainer_id:this.sess.uid},o))});},
+  async allVisibleSessions(){const r=await this.af(SB_URL+'/rest/v1/sessions?select=user_id,exercises,date',{headers:this.h(true)});if(!r.ok)return[];return await r.json();},
+  // fetch autenticado: renueva el token si va a expirar (sesiones de >1 h ya no fallan en silencio)
+  async af(url,opt){
+    await this.ensureFresh();
+    opt=opt||{};if(opt.headers&&this.ready())opt.headers.Authorization='Bearer '+this.sess.access_token;
+    return sbFetch(url,opt);
+  },
+  async ok(p){const r=await p;if(!r.ok)throw new Error('HTTP '+r.status);return r;},
+  async myInvites(){const r=await this.af(SB_URL+'/rest/v1/rpc/my_invites',{method:'POST',headers:this.h(true),body:'{}'});if(!r.ok)return[];return await r.json();},
+  async respondInvite(id,accept){const r=await this.af(SB_URL+'/rest/v1/rpc/respond_invite',{method:'POST',headers:this.h(true),body:JSON.stringify({p_id:id,p_accept:accept})});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();},
+  async myAssignments(){
+    const r=await this.af(SB_URL+'/rest/v1/assignments?select=kind,ref_id,assigned_at&client_id=eq.'+this.sess.uid+'&order=assigned_at.desc',{headers:this.h(true)});
+    if(!r.ok)return[];const a=await r.json();
+    const ids=k=>a.filter(x=>x.kind===k).map(x=>x.ref_id);
+    const get=async(tbl,list)=>{if(!list.length)return[];const q=await this.af(SB_URL+'/rest/v1/'+tbl+'?select=id,name,items&id=in.('+list.join(',')+')',{headers:this.h(true)});return q.ok?await q.json():[];};
+    const [rt,dt]=await Promise.all([get('routines',ids('routine')),get('diets',ids('diet'))]);
+    return [...rt.map(x=>({...x,kind:'routine'})),...dt.map(x=>({...x,kind:'diet'}))];
+  },
+  async setRole(role){return this.af(SB_URL+'/rest/v1/profiles?id=eq.'+this.sess.uid,{method:'PATCH',headers:this.h(true),body:JSON.stringify({role})});}
 });
+// escrituras: un HTTP 4xx/5xx ahora es error (antes se tomaba como exito y se perdian datos)
+['insertSession','upsertProfile','setRole','assign'].forEach(k=>{const f=sb[k];sb[k]=function(...a){return this.ok(f.apply(this,a));};});
+function localISO(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 // media host for exercise gifs/images (from the source dataset repo).
 // raw.githubusercontent is verified working; for high traffic switch to a CDN (jsDelivr) or self-host.
 const MEDIA='https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/';
@@ -754,8 +809,8 @@ const T={
   bodymap:'Mapa corporal',yourhierarchy:'Tu jerarquía',fisico_sub:'Cada músculo se ilumina y sube de rango con el volumen que registras.',
   front:'Frente',back:'Espalda',laggards:'Rezagados · volumen prioritario',allmuscles:'Todos los músculos',library:'Biblioteca',
   exercises:'Ejercicios',search_ph:'Buscar ejercicio o músculo…',profile:'Perfil',seeplans:'Ver planes',summary:'Resumen',level:'Nivel',
-  lang:'Idioma',export:'Exportar mis datos (JSON)',logout:'Cerrar sesión',reset:'Borrar mis datos',
-  localnote:'Impulse · tus datos se guardan por correo en este dispositivo',nav_home:'Inicio',nav_train:'Entrenar',nav_body:'Físico',
+  lang:'Idioma',export:'Exportar mis datos (JSON)',logout:'Cerrar sesión',reset:'Borrar datos de este teléfono',
+  localnote:'Impulse · tus sesiones se sincronizan en la nube con tu cuenta',nav_home:'Inicio',nav_train:'Entrenar',nav_body:'Físico',
   nav_lib:'Biblioteca',nav_profile:'Perfil',gate_title:'Inicia sesión',gate_sub:'Entra con tu correo y contraseña. Tus datos se guardan y se sincronizan en la nube.',
   enter:'Entrar',gate_note:'Mínimo 6 caracteres. Tus datos se sincronizan en la nube por tu cuenta.',
   signup_btn:'Crear cuenta',signup_title:'Crea tu cuenta',to_signup:'¿Primera vez? Crear cuenta',to_login:'¿Ya tienes cuenta? Inicia sesión',pass_ph:'Contraseña',pass_short:'La contraseña debe tener al menos 6 caracteres',confirm_needed:'Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.',bad_creds:'Correo o contraseña incorrectos',already_reg:'Ese correo ya tiene cuenta. Inicia sesión.',auth_err:'No se pudo completar. Intenta de nuevo.',net_err:'No hay conexión con el servidor. Intenta de nuevo en unos minutos.',not_confirmed:'Tu correo aún no está confirmado. Revisa tu bandeja o intenta más tarde.',rate_limited:'Demasiados intentos. Espera un momento e intenta de nuevo.',
@@ -763,8 +818,8 @@ const T={
   nav_coach:'Coach',onb_role_t:'¿Cómo usarás Impulse?',role_athlete:'Soy atleta',role_trainer:'Soy entrenador',onb_role_note:'Puedes cambiarlo después en tu perfil.',
   role_mode:'Modo',role_to_trainer:'Ser entrenador',role_to_athlete:'Volver a atleta',role_now_trainer:'Modo entrenador activado',role_now_athlete:'Modo atleta activado',
   co_title:'Panel de entrenador',co_clients:'Clientes',co_active:'Activos',co_avg:'Nivel prom.',co_newclient:'Nuevo cliente',co_ai:'Crear con IA',co_myclients:'Mis clientes',co_plans:'Rutinas y dietas',co_recent:'Actividad reciente',
-  co_client_sub:'Agrega o invita a un cliente por correo. Se activa cuando entra con ese correo.',co_addclient:'Agregar cliente',co_client_added:'Cliente agregado',
-  co_assign:'Asignar',co_assign_pending:'invitación pendiente',co_assign_needactive:'El cliente debe entrar con su correo antes de asignarle.',co_assigned:'Asignado ✓',
+  co_client_sub:'Invita a un cliente por correo. Verá la invitación en su app al entrar con ese correo y, al aceptarla, queda activo.',co_addclient:'Agregar cliente',co_client_added:'Invitación enviada ✓',
+  co_assign:'Asignar',co_assign_pending:'invitación pendiente',co_assign_needactive:'El cliente debe aceptar tu invitación antes de asignarle.',co_assigned:'Asignado ✓',
   co_ai_title:'Crear con IA',co_kind_routine:'Rutina',co_kind_diet:'Dieta',co_ai_ph:'Ej: Rutina push/pull/legs 4 días para hipertrofia, nivel intermedio',co_generate:'Generar',co_generating:'Generando…',co_ai_empty:'Escribe qué quieres generar',co_ai_err:'No se pudo generar. Revisa que la función esté desplegada e intenta de nuevo.',co_ai_nojson:'La IA respondió en texto; puedes reintentar para obtener el formato guardable.',
   co_save:'Guardar',co_saved:'Guardado ✓',co_err:'Ocurrió un error, intenta de nuevo',
   co_noclients:'Aún no tienes clientes. Agrega el primero.',co_noplans:'Aún no hay rutinas ni dietas. Crea una con IA.',co_noactivity:'Sin actividad reciente de clientes.',
@@ -780,12 +835,12 @@ const T={
   plan_login_sub:'El pago seguro (Stripe) se activa en la siguiente fase. Tu plan se otorgará automáticamente al confirmarse el pago.',activate:'Continuar al pago',loading:'Cargando ejercicios…',
   sindatos:'Sin datos',sinentrenar:'Sin entrenar',untrained_hint:'Empieza a registrar para iluminar tu modelo.',start_hint:'Registra tu primera serie para empezar a subir de rango.',
   hola:'Hola',sets:'series',all:'Todos',saved:'Sesión guardada',added:'Añadido',logset:'Registra al menos una serie',
-  discard:'¿Descartar esta sesión? Se perderá lo registrado.',resetq:'¿Borrar tus datos de esta cuenta?',
+  discard:'¿Descartar esta sesión? Se perderá lo registrado.',resetq:'Se borra la copia local y se cierra sesión. Lo guardado en la nube no se borra.',
   focuson:'Foco en',rezagadosn:'rezagados',day:'días',min:'min',noreza:'Aún sin rezagados. Registra más volumen.',
   next:'Próximo',maxrank:'Rango máximo',elite:'Élite',reclaim_sub:'Subiste de rango. El plan reajusta tu volumen automáticamente.',
   more_up:'músculo(s) más subieron de rango.',activated:'activado',invalid_email:'Escribe un correo válido',
   email_mismatch:'Usa el mismo correo con el que entraste',plan_activated:'plan activado',prof_free:'Plan gratis. Ver Normal y Premium.',
-  prof_active:'activo',welcome_back:'Bienvenido de nuevo',primary:'Principal',secondary:'Secundario'},
+  prof_active:'activo',confirm_ok:'Aceptar',cancel:'Cancelar',discard_t:'¿Descartar sesión?',discard_ok:'Descartar',logout_q:'¿Cerrar sesión?',logout_b:'Tus sesiones ya guardadas en la nube se conservan.',reset_t:'¿Borrar datos de este teléfono?',reset_ok:'Borrar',finish_t:'¿Terminar sesión?',finish_b:'Series a guardar: {n}.',finish_inc:'Series incompletas que se descartan: {n}.',back_btn:'← Atrás',onb_name_req:'Escribe tu nombre para continuar',welcome:'Bienvenido',rm_ex_t:'¿Quitar este ejercicio?',remove:'Quitar',saved_offline:'Guardada en tu teléfono. Se subirá a la nube al recuperar conexión.',synced:'Sesiones sincronizadas: {n} ✓',inv_t:'Invitación de coach',inv_b:'{name} quiere ser tu coach en Impulse.',inv_yes:'Aceptar',inv_no:'Rechazar',inv_confirm:'{name} podrá ver tus sesiones y tu perfil, y asignarte rutinas y dietas.',inv_ok:'Ahora tienes coach ✓',inv_declined:'Invitación rechazada',myplan:'Plan de tu coach',saving:'Guardando…',co_dup:'Ese correo ya está en tu lista',welcome_back:'Bienvenido de nuevo',primary:'Principal',secondary:'Secundario'},
  en:{streak:'Streak',week:'This week',sessions:'Sessions',totalvol:'Total volume',nextsession:'Next session',
   priority:'Priority',startsession:'Start session',recent:'Recent activity',train:'Train',newsession:'New session',
   train_sub:'Pick where to start. You can add more exercises during the session.',recommended:'Recommended today',
@@ -793,8 +848,8 @@ const T={
   bodymap:'Body map',yourhierarchy:'Your hierarchy',fisico_sub:'Each muscle lights up and ranks up with the volume you log.',
   front:'Front',back:'Back',laggards:'Laggards · priority volume',allmuscles:'All muscles',library:'Library',
   exercises:'Exercises',search_ph:'Search exercise or muscle…',profile:'Profile',seeplans:'See plans',summary:'Summary',level:'Level',
-  lang:'Language',export:'Export my data (JSON)',logout:'Log out',reset:'Delete my data',
-  localnote:'Impulse · your data is stored per email on this device',nav_home:'Home',nav_train:'Train',nav_body:'Physique',
+  lang:'Language',export:'Export my data (JSON)',logout:'Log out',reset:'Delete data on this phone',
+  localnote:'Impulse · your sessions sync to the cloud with your account',nav_home:'Home',nav_train:'Train',nav_body:'Physique',
   nav_lib:'Library',nav_profile:'Profile',gate_title:'Sign in',gate_sub:'Sign in with your email and password. Your data is saved and synced to the cloud.',
   enter:'Sign in',gate_note:'At least 6 characters. Your data syncs to the cloud under your account.',
   signup_btn:'Create account',signup_title:'Create your account',to_signup:'First time? Create account',to_login:'Already have an account? Sign in',pass_ph:'Password',pass_short:'Password must be at least 6 characters',confirm_needed:'Account created. Check your email to confirm, then sign in.',bad_creds:'Wrong email or password',already_reg:'That email already has an account. Sign in.',auth_err:'Could not complete. Try again.',net_err:'Cannot reach the server. Try again in a few minutes.',not_confirmed:'Your email is not confirmed yet. Check your inbox or try later.',rate_limited:'Too many attempts. Wait a moment and try again.',
@@ -802,8 +857,8 @@ const T={
   nav_coach:'Coach',onb_role_t:'How will you use Impulse?',role_athlete:'I am an athlete',role_trainer:'I am a trainer',onb_role_note:'You can change it later in your profile.',
   role_mode:'Mode',role_to_trainer:'Become trainer',role_to_athlete:'Back to athlete',role_now_trainer:'Trainer mode on',role_now_athlete:'Athlete mode on',
   co_title:'Trainer dashboard',co_clients:'Clients',co_active:'Active',co_avg:'Avg level',co_newclient:'New client',co_ai:'Create with AI',co_myclients:'My clients',co_plans:'Routines & diets',co_recent:'Recent activity',
-  co_client_sub:'Add or invite a client by email. Activated when they sign in with that email.',co_addclient:'Add client',co_client_added:'Client added',
-  co_assign:'Assign',co_assign_pending:'invite pending',co_assign_needactive:'The client must sign in with their email before assigning.',co_assigned:'Assigned ✓',
+  co_client_sub:'Invite a client by email. They see the invitation in their app when signing in with that email; once accepted they are active.',co_addclient:'Add client',co_client_added:'Invitation sent ✓',
+  co_assign:'Assign',co_assign_pending:'invite pending',co_assign_needactive:'The client must accept your invitation before assigning.',co_assigned:'Assigned ✓',
   co_ai_title:'Create with AI',co_kind_routine:'Routine',co_kind_diet:'Diet',co_ai_ph:'e.g. Push/pull/legs routine 4 days for hypertrophy, intermediate',co_generate:'Generate',co_generating:'Generating…',co_ai_empty:'Type what you want to generate',co_ai_err:'Could not generate. Check the function is deployed and try again.',co_ai_nojson:'The AI replied in text; retry to get the saveable format.',
   co_save:'Save',co_saved:'Saved ✓',co_err:'Something went wrong, try again',
   co_noclients:'No clients yet. Add your first one.',co_noplans:'No routines or diets yet. Create one with AI.',co_noactivity:'No recent client activity.',
@@ -819,12 +874,12 @@ const T={
   plan_login_sub:'Secure payment (Stripe) activates in the next phase. Your plan is granted automatically once payment is confirmed.',activate:'Continue to payment',loading:'Loading exercises…',
   sindatos:'No data',sinentrenar:'Untrained',untrained_hint:'Start logging to light up your model.',start_hint:'Log your first set to start ranking up.',
   hola:'Hi',sets:'sets',all:'All',saved:'Session saved',added:'Added',logset:'Log at least one set',
-  discard:'Discard this session? Logged data will be lost.',resetq:'Delete this account\'s data?',
+  discard:'Discard this session? Logged data will be lost.',resetq:'The local copy is deleted and you are logged out. Cloud data is not deleted.',
   focuson:'Focus on',rezagadosn:'laggards',day:'days',min:'min',noreza:'No laggards yet. Log more volume.',
   next:'Next',maxrank:'Max rank',elite:'Elite',reclaim_sub:'You ranked up. The plan rebalances your volume automatically.',
   more_up:'more muscle(s) ranked up.',activated:'activated',invalid_email:'Enter a valid email',
   email_mismatch:'Use the same email you signed in with',plan_activated:'plan activated',prof_free:'Free plan. See Normal and Premium.',
-  prof_active:'active',welcome_back:'Welcome back',primary:'Primary',secondary:'Secondary'},
+  prof_active:'active',confirm_ok:'OK',cancel:'Cancel',discard_t:'Discard session?',discard_ok:'Discard',logout_q:'Log out?',logout_b:'Sessions already saved to the cloud are kept.',reset_t:'Delete data on this phone?',reset_ok:'Delete',finish_t:'Finish session?',finish_b:'Sets to save: {n}.',finish_inc:'Incomplete sets dropped: {n}.',back_btn:'← Back',onb_name_req:'Enter your name to continue',welcome:'Welcome',rm_ex_t:'Remove this exercise?',remove:'Remove',saved_offline:'Saved on your phone. It will upload to the cloud when you are back online.',synced:'Sessions synced: {n} ✓',inv_t:'Coach invitation',inv_b:'{name} wants to be your coach on Impulse.',inv_yes:'Accept',inv_no:'Decline',inv_confirm:'{name} will see your sessions and profile, and can assign you routines and diets.',inv_ok:'You now have a coach ✓',inv_declined:'Invitation declined',myplan:'Your coach plan',saving:'Saving…',co_dup:'That email is already on your list',welcome_back:'Welcome back',primary:'Primary',secondary:'Secondary'},
 };
 let LANG=localStorage.getItem('impulse.lang')||'es';
 const t=k=>(T[LANG][k]!==undefined?T[LANG][k]:(T.es[k]||k));
@@ -906,7 +961,7 @@ function laggards(v){
 }
 function streak(){
   const days=new Set((U.sessions||[]).map(se=>se.date));let n=0,d=new Date();
-  const iso=x=>x.toISOString().slice(0,10);
+  const iso=x=>localISO(x);
   if(!days.has(iso(d))){d.setDate(d.getDate()-1);if(!days.has(iso(d)))return 0;}
   while(days.has(iso(d))){n++;d.setDate(d.getDate()-1);}return n;
 }
@@ -918,7 +973,16 @@ function fmtVol(kg){return kg>=1000?(kg/1000).toFixed(1):Math.round(kg);}
 function volUnit(kg){return kg>=1000?'t':'kg';}
 
 /* ---------- toast / loader ---------- */
-let toT;function toast(m){const el=$('#toast');el.textContent=m;el.classList.add('on');clearTimeout(toT);toT=setTimeout(()=>el.classList.remove('on'),1900);}
+let toT;function toast(m){const el=$('#toast');el.textContent=m;el.classList.add('on');clearTimeout(toT);toT=setTimeout(()=>el.classList.remove('on'),Math.max(2200,String(m).length*55));}
+
+/* ---------- dialogo de confirmacion (reemplaza confirm() nativo) ---------- */
+function ask(title,body,okLabel,danger){return new Promise(res=>{
+  $('#dlg-t').textContent=title;$('#dlg-b').textContent=body||'';
+  const ok=$('#dlg-ok'),no=$('#dlg-no');ok.textContent=okLabel||t('confirm_ok');no.textContent=t('cancel');
+  ok.className='btn'+(danger?' danger':'');
+  const done=v=>{$('#dlg').classList.remove('on');ok.onclick=no.onclick=null;res(v);};
+  ok.onclick=()=>done(true);no.onclick=()=>done(false);
+  $('#dlg').classList.add('on');});}
 
 /* ---------- gate + onboarding ---------- */
 $('#gate-lang').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.v)));
@@ -972,18 +1036,22 @@ let onb={step:0,name:'',goal:'Hipertrofia',days:'4',role:'athlete'};
 function segPick(wrap,cb){wrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   wrap.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(b.dataset.v);}));}
 segPick($('#in-goal'),v=>onb.goal=v);segPick($('#in-days'),v=>onb.days=v);segPick($('#in-role'),v=>onb.role=v);
-function showStep(n){onb.step=n;$$('#onb .ostep').forEach(s=>s.classList.toggle('on',+s.dataset.step===n));}
+function showStep(n){onb.step=n;$$('#onb .ostep').forEach(s=>s.classList.toggle('on',+s.dataset.step===n));
+  $$('#onb-dots i').forEach((d,i)=>d.classList.toggle('on',i<=n));}
 function startOnb(){onb={step:0,name:'',goal:'Hipertrofia',days:'4',role:'athlete'};showStep(0);$('#onb').classList.add('on');}
 $$('#onb [data-next]').forEach(b=>b.addEventListener('click',()=>{
-  if(onb.step===0)onb.name=$('#in-name').value.trim();
+  if(onb.step===0){onb.name=$('#in-name').value.trim();if(!onb.name){toast(t('onb_name_req'));$('#in-name').focus();return;}}
   showStep(onb.step+1);
 }));
+$$('#onb [data-back]').forEach(b=>b.addEventListener('click',()=>showStep(Math.max(0,onb.step-1))));
+$('#in-name').addEventListener('keydown',e=>{if(e.key==='Enter')$('#onb [data-step="0"] [data-next]').click();});
 $('#onb [data-done]').addEventListener('click',()=>{
   U.profile={name:onb.name||(LANG==='es'?'Atleta':'Athlete'),goal:onb.goal,days:+onb.days};
   U.role=onb.role||'athlete';
   U.onboarded=true;saveUser();
-  if(sb.ready())sb.upsertProfile({name:U.profile.name,goal:U.profile.goal,days:U.profile.days,lang:LANG,role:U.role}).catch(()=>{});
+  U.profilePending=true;saveUser();
   $('#onb').classList.remove('on');enterApp(true);
+  toast(t('welcome')+', '+U.profile.name+' 💪');
 });
 function applyRoleUI(){
   const isTrainer=U&&U.role==='trainer';
@@ -994,6 +1062,7 @@ function enterApp(ok){
   applyRoleUI();
   go('inicio');renderAll();
   if(!EXS.length)ensureExercises();
+  syncPending();loadInbox();
 }
 
 /* ---------- exercises loading ---------- */
@@ -1142,12 +1211,14 @@ function renderSession(){
     const card=document.createElement('div');card.className='card';
     card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <b style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(def.name)}</b>
-      <span class="pill">${def.muscle?mlabel(def.muscle):esc(def.target||'')}</span></div>`;
+      <span style="display:flex;gap:6px;align-items:center"><span class="pill">${def.muscle?mlabel(def.muscle):esc(def.target||'')}</span><button class="rm" data-rm aria-label="${esc(t('remove'))}">✕</button></span></div>`;
+    card.querySelector('[data-rm]').addEventListener('click',async()=>{
+      if(await ask(t('rm_ex_t'),def.name,t('remove'),true)){draft.exercises.splice(ei,1);renderSession();}});
     ex.sets.forEach((st,si)=>{
       const row=document.createElement('div');row.className='setrow';
       row.innerHTML=`<span class="ix">${si+1}</span>
         <input inputmode="decimal" placeholder="kg" value="${st.w}" data-e="${ei}" data-s="${si}" data-f="w"/><span class="u">kg</span>
-        <input inputmode="numeric" placeholder="${t('sets')}" value="${st.r}" data-e="${ei}" data-s="${si}" data-f="r"/><span class="u">reps</span>
+        <input inputmode="numeric" placeholder="reps" value="${st.r}" data-e="${ei}" data-s="${si}" data-f="r"/><span class="u">reps</span>
         <span class="done">${(st.w&&st.r)?'✓':''}</span>`;
       card.appendChild(row);
     });
@@ -1160,15 +1231,23 @@ function renderSession(){
     const st=draft.exercises[ei].sets[si];e.target.closest('.setrow').querySelector('.done').textContent=(st.w&&st.r)?'✓':'';
   }));
 }
-$('#sess-cancel').addEventListener('click',()=>{if(confirm(t('discard')))endSession();});
-$('#sess-finish').addEventListener('click',finishSession);
+$('#sess-cancel').addEventListener('click',async()=>{
+  const any=draft&&draft.exercises.some(ex=>ex.sets.some(s=>s.w||s.r));
+  if(!any||await ask(t('discard_t'),t('discard'),t('discard_ok'),true))endSession();});
+$('#sess-finish').addEventListener('click',async()=>{
+  const okSet=s=>+s.w>0&&+s.r>0;
+  const n=draft?draft.exercises.reduce((a,ex)=>a+ex.sets.filter(okSet).length,0):0;
+  if(!n){toast(t('logset'));return;}
+  const inc=draft.exercises.reduce((a,ex)=>a+ex.sets.filter(s=>!okSet(s)).length,0);
+  if(await ask(t('finish_t'),t('finish_b').replace('{n}',n)+(inc?' '+t('finish_inc').replace('{n}',inc):''),t('finishsave')))finishSession();
+});
 function finishSession(){
-  const clean={date:new Date().toISOString().slice(0,10),ts:Date.now(),durationSec:Math.floor((Date.now()-t0)/1000),
+  const clean={date:localISO(),ts:Date.now(),durationSec:Math.floor((Date.now()-t0)/1000),
     exercises:draft.exercises.map(ex=>{const d=EXBY[ex.id];return {id:ex.id,muscle:d?d.muscle:null,muscle_sec:d?d.muscle_sec:[],
       sets:ex.sets.filter(s=>+s.w>0&&+s.r>0)};}).filter(ex=>ex.sets.length)};
   if(!clean.exercises.length){toast(t('logset'));return;}
-  const before=volumes();U.sessions.push(clean);saveUser();const after=volumes();
-  if(sb.ready()&&sb.sess.uid)sb.insertSession({user_id:sb.sess.uid,date:clean.date,duration_sec:clean.durationSec,exercises:clean.exercises}).catch(()=>{});
+  const before=volumes();clean.pending=true;U.sessions.push(clean);saveUser();const after=volumes();
+  syncPending(true);
   const ups=[];for(const m in MUS){if(tierIdx(tierOf(after[m]))>tierIdx(tierOf(before[m])))ups.push({m,t:tierOf(after[m])});}
   endSession();
   if(ups.length)showCelebration(ups);else toast(t('saved')+' 💪');
@@ -1183,6 +1262,73 @@ function showCelebration(ups){
   $('#celebrate').classList.add('on');
 }
 $('#cel-claim').addEventListener('click',()=>{$('#celebrate').classList.remove('on');go('fisico');});
+
+/* ---------- sincronizacion de pendientes (sesiones / perfil) ---------- */
+let syncing=false;
+async function syncPending(fromFinish){
+  if(syncing||!U||!sb.ready()||!sb.sess.uid)return;syncing=true;let n=0,fail=false;
+  try{
+    if(U.profilePending&&U.profile){
+      await sb.upsertProfile({name:U.profile.name,goal:U.profile.goal,days:U.profile.days,lang:LANG,role:U.role});
+      delete U.profilePending;saveUser();
+    }
+    for(const s of (U.sessions||[]).filter(x=>x.pending)){
+      await sb.insertSession({user_id:sb.sess.uid,date:s.date,duration_sec:s.durationSec||0,exercises:s.exercises});
+      delete s.pending;n++;saveUser();
+    }
+  }catch(e){fail=true;}
+  finally{syncing=false;}
+  if(fail&&fromFinish)toast(t('saved_offline'));
+  else if(n&&!fromFinish)toast(t('synced').replace('{n}',n));
+}
+window.addEventListener('online',()=>syncPending());
+
+/* ---------- invitaciones y plan del coach (vista del cliente) ---------- */
+async function loadInbox(){
+  if(!sb.ready()||!sb.sess.uid)return;
+  const [inv,plans]=await Promise.all([sb.myInvites().catch(()=>[]),sb.myAssignments().catch(()=>[])]);
+  renderInvites(inv);renderMyPlan(plans);
+}
+function renderInvites(inv){
+  const box=$('#invites');box.innerHTML='';
+  (inv||[]).forEach(x=>{
+    const nm=x.trainer_name||'Coach';
+    const c=document.createElement('div');c.className='card';c.style.marginTop='14px';
+    c.innerHTML=`<b>${esc(t('inv_t'))}</b><div class="sub" style="margin-top:6px">${esc(t('inv_b').replace('{name}',nm))}</div>
+      <div style="display:flex;gap:8px"><button class="btn ghost" data-a="0">${esc(t('inv_no'))}</button><button class="btn" data-a="1">${esc(t('inv_yes'))}</button></div>`;
+    c.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',async()=>{
+      const yes=b.dataset.a==='1';
+      if(yes&&!(await ask(t('inv_t'),t('inv_confirm').replace('{name}',nm),t('inv_yes'))))return;
+      c.querySelectorAll('button').forEach(z=>z.disabled=true);
+      try{await sb.respondInvite(x.id,yes);toast(yes?t('inv_ok'):t('inv_declined'));c.remove();if(yes)loadInbox();}
+      catch(e){toast(t('co_err'));c.querySelectorAll('button').forEach(z=>z.disabled=false);}
+    }));
+    box.appendChild(c);
+  });
+}
+function renderMyPlan(plans){
+  const box=$('#myplan');box.innerHTML='';if(!plans||!plans.length)return;
+  const h=document.createElement('h2');h.className='sec';h.textContent=t('myplan');box.appendChild(h);
+  plans.forEach(p=>{
+    const r=document.createElement('div');r.className='row';
+    r.innerHTML=`<div class="thumb">${p.kind==='routine'?'▲':'◎'}</div><div class="meta"><div class="t">${esc(p.name||'—')}</div>
+      <div class="s">${p.kind==='routine'?t('co_kind_routine'):t('co_kind_diet')} · ${(p.items||[]).length} ${p.kind==='routine'?t('co_items_ex'):t('co_items_meal')}</div></div><span class="pill">›</span>`;
+    r.addEventListener('click',()=>openPlanView(p));box.appendChild(r);
+  });
+}
+function openPlanView(p){
+  $('#pv-name').textContent=p.name||'—';
+  $('#pv-kind').textContent=p.kind==='routine'?t('co_kind_routine'):t('co_kind_diet');
+  const l=$('#pv-list');l.innerHTML='';
+  (p.items||[]).forEach(it=>{
+    const r=document.createElement('div');r.className='row';
+    r.innerHTML=p.kind==='routine'
+      ?`<div class="meta"><div class="t">${esc(it.exercise||'')}</div><div class="s">${esc(String(it.sets||''))} × ${esc(String(it.reps||''))}${it.notes?' · '+esc(it.notes):''}</div></div>`
+      :`<div class="meta"><div class="t">${esc(it.meal||'')}</div><div class="s">${esc((it.foods||[]).join(', '))} · ${esc(String(it.kcal||''))} kcal</div></div>`;
+    l.appendChild(r);
+  });
+  $('#sheet-pv').classList.add('on');
+}
 
 /* ---------- inicio ---------- */
 function recommend(lags){
@@ -1240,7 +1386,7 @@ function renderEntrenar(){
   exForMuscle(grpSel).slice(0,30).forEach(e=>{
     const r=document.createElement('div');r.className='row';
     r.innerHTML=`<div class="thumb"><img loading="lazy" src="${safeURL(gifURL(e))}"></div><div class="meta"><div class="t">${esc(exName(e))}</div><div class="s">${esc(e.equipment)}</div></div><span class="pill">+</span>`;
-    r.addEventListener('click',()=>{draft=draft||{exercises:[]};addExercise(e.id,true);startSession();});
+    r.addEventListener('click',()=>{draft=draft||{exercises:[]};addExercise(e.id,true);startSession();toast(t('added')+': '+exName(e));});
     ge.appendChild(r);
   });
 }
@@ -1301,7 +1447,7 @@ function renderPerfil(){
 $('#p-role-toggle').addEventListener('click',()=>{
   if(!U)return;
   U.role=(U.role==='trainer')?'athlete':'trainer';saveUser();
-  if(sb.ready())sb.setRole(U.role).catch(()=>{});
+  if(sb.ready())sb.setRole(U.role).catch(()=>{U.profilePending=true;saveUser();});
   applyRoleUI();renderPerfil();
   toast(U.role==='trainer'?t('role_now_trainer'):t('role_now_athlete'));
   if(U.role!=='trainer'&&currentView==='coach')go('inicio');
@@ -1320,8 +1466,8 @@ $('#plan-activate').addEventListener('click',()=>{
   closeSheets();toast(t('pay_soon'));
 });
 $('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(U,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='impulse-'+CUR+'.json';a.click();});
-$('#logout').addEventListener('click',()=>{sb.signOut();localStorage.removeItem('impulse.current');location.reload();});
-$('#reset').addEventListener('click',()=>{if(confirm(t('resetq'))){if(CUR)localStorage.removeItem(userKey(CUR));sb.signOut();localStorage.removeItem('impulse.current');location.reload();}});
+$('#logout').addEventListener('click',async()=>{if(!(await ask(t('logout_q'),t('logout_b'),t('logout'))))return;sb.signOut();localStorage.removeItem('impulse.current');location.reload();});
+$('#reset').addEventListener('click',async()=>{if(await ask(t('reset_t'),t('resetq'),t('reset_ok'),true)){if(CUR)localStorage.removeItem(userKey(CUR));sb.signOut();localStorage.removeItem('impulse.current');location.reload();}});
 
 /* ---------- coach / entrenador ---------- */
 let coCache={clients:[],routines:[],diets:[]};
@@ -1382,10 +1528,10 @@ $('#co-add').addEventListener('click',()=>{$('#cl-name').value='';$('#cl-email')
 $('#cl-save').addEventListener('click',async()=>{
   const name=$('#cl-name').value.trim();const email=$('#cl-email').value.trim().toLowerCase();
   if(!validEmail(email)){toast(t('invalid_email'));return;}
-  const btn=$('#cl-save');btn.disabled=true;
+  const btn=$('#cl-save');btn.disabled=true;const old=btn.textContent;btn.textContent=t('saving');
   try{await sb.addClient({client_email:email,client_name:name||null,status:'invited'});closeSheets();toast(t('co_client_added'));renderCoach();}
-  catch(e){toast(t('co_err'));}
-  finally{btn.disabled=false;}
+  catch(e){toast(String(e.message).includes('409')?t('co_dup'):t('co_err'));}
+  finally{btn.disabled=false;btn.textContent=old;}
 });
 // Asignar rutina/dieta a un cliente
 let assignClient=null;
@@ -1463,13 +1609,17 @@ function renderAll(){renderInicio();renderPerfil();if(currentView==='fisico')pai
 async function hydrateFromCloud(){
   const [prof,rows,sub]=await Promise.all([sb.getProfile(),sb.getSessions(),sb.getSub()]);
   const sessions=(rows||[]).map(r=>({date:r.date,ts:r.created_at?Date.parse(r.created_at):Date.now(),durationSec:r.duration_sec||0,exercises:r.exercises||[]}));
+  const local=loadUser(sb.sess.email);
+  const pend=((local&&local.sessions)||[]).filter(s=>s.pending);
+  const lp=(local&&local.profilePending&&local.profile)?local:null;
   CUR=sb.sess.email;
   U={email:sb.sess.email,uid:sb.sess.uid,
-     profile:(prof&&prof.name)?{name:prof.name,goal:prof.goal||'Hipertrofia',days:prof.days||4}:null,
-     onboarded:!!(prof&&prof.name),
+     profile:lp?lp.profile:((prof&&prof.name)?{name:prof.name,goal:prof.goal||'Hipertrofia',days:prof.days||4}:null),
+     onboarded:!!lp||!!(prof&&prof.name),
      plan:(sub&&sub.plan)?sub.plan:'free',
-     role:(prof&&prof.role)?prof.role:'athlete',
-     sessions};
+     role:lp?(lp.role||'athlete'):((prof&&prof.role)?prof.role:'athlete'),
+     sessions:sessions.concat(pend)};
+  if(lp)U.profilePending=true;
   if(prof&&prof.lang&&prof.lang!==LANG)setLang(prof.lang);
   saveUser();
 }
