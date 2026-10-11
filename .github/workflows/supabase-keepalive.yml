@@ -1,0 +1,16 @@
+# Evita que el proyecto Supabase (free tier) se pause por inactividad.
+# Cada 3 dias hace una consulta ligera a la API con la publishable key (publica, ya esta en el frontend).
+name: supabase-keepalive
+on:
+  schedule:
+    - cron: "17 14 */3 * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -fsS -o /dev/null -w "%{http_code}\n" \
+            -H "apikey: sb_publishable_gnR1jaKa7AnT3dUXppprUg_MFqoUBpc" \
+            "https://ktmtiekavogqwgridiyx.supabase.co/rest/v1/profiles?select=id&limit=1"
